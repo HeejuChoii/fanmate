@@ -1,0 +1,26 @@
+{
+  "name": "fanmate",
+  "private": true,
+  "version": "0.1.0",
+  "description": "FanMate — taste-aware K-pop fan agent: fan-verified idol data + Qloo taste AI (Qloo Agentic Hackathon)",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file=.env --import tsx src/server.ts",
+    "dev": "node --env-file=.env --import tsx --watch src/server.ts",
+    "start:prod": "node --import tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node scripts/run-tests.mjs"
+  },
+  "dependencies": {
+    "@h1r-ai/croche": "^0.5.4",
+    "tsx": "^4.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "license": "MIT"
+}

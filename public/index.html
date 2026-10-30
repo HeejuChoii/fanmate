@@ -1,0 +1,1571 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FanMate — K-pop fan-mate with taste</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* 색·여백·카드 톤은 ~/sonminsoo-main(손민수위키)의 전반적인 느낌(둥근 카드, 그라데이션 버튼, 차분한
+     청록 포인트)을 참고해서 맞췄다 — 그 프로젝트 파일은 읽기만 했고 수정하지 않았음. 포인트 컬러는
+     PRD가 정한 #02a5c8을 그대로 유지. */
+  :root {
+    --accent: #02a5c8;
+    --accent-dark: #018aa8;
+    --accent-bright: #22c3e0;
+    --accent-soft: #daf2fa;
+    --accent-gradient: linear-gradient(135deg, #22c3e0, #0089a8);
+    --paper: #edf3f6;
+    --bg: #ffffff;
+    --text: #0f2027;
+    --text-2: #3a5560;
+    --muted: #6e8894;
+    --border: #d9e6ec;
+    --border-strong: #aac3cc;
+    --panel-bg: #f5fafc;
+    --badge-original: #02a5c8;
+    --badge-alt: #6e8894;
+    --radius-card: 14px;
+    --radius-control: 10px;
+    --shadow-card: 0 10px 28px rgba(15, 32, 39, .08);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--text); }
+  body {
+    font: 15px/1.55 "IBM Plex Sans KR", -apple-system, "Apple SD Gothic Neo", sans-serif;
+    display: flex; justify-content: center;
+  }
+
+  /* 노트북 화면 가운데 폰 크기 앱처럼 보이게 하는 틀. 좁은 화면(실제 휴대폰)에서는 그냥 꽉 채운다. */
+  .phone-shell {
+    width: 100%; max-width: 430px; min-height: 100vh; min-height: 100dvh;
+    background: var(--bg); display: flex; flex-direction: column; position: relative; overflow: hidden;
+  }
+  @media (min-width: 480px) {
+    body { padding: 1.5rem 0; align-items: center; }
+    .phone-shell {
+      height: min(860px, calc(100vh - 3rem)); min-height: 0;
+      border-radius: 28px; border: 1px solid var(--border);
+      box-shadow: 0 24px 60px rgba(15, 32, 39, .18);
+    }
+  }
+
+  header {
+    display: flex; align-items: center; gap: .6rem;
+    padding: .65rem .9rem; border-bottom: 1px solid var(--border); flex-wrap: nowrap; flex-shrink: 0;
+    background: var(--bg);
+  }
+  .avatar {
+    width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .avatar, .mini-avatar { transform-origin: center; }
+  .avatar.bounce, .mini-avatar.bounce { animation: dukme-bounce .4s ease; }
+  @keyframes dukme-bounce {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.18); }
+    65% { transform: scale(.92); }
+    100% { transform: scale(1); }
+  }
+  #avatar-status {
+    font-size: .8rem; color: var(--accent-dark); font-weight: 600; min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  header h1 { font-size: 1.05rem; margin: 0; color: var(--text); letter-spacing: -.02em; }
+  header .head-text { min-width: 0; overflow: hidden; }
+  header .spacer { flex: 1; min-width: .5rem; }
+  header button, .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: .35rem;
+    background: var(--accent-gradient); border: none; color: #fff;
+    border-radius: var(--radius-control); padding: .5rem .8rem; font-size: .82rem; font-weight: 600;
+    cursor: pointer; box-shadow: 0 6px 14px rgba(2, 165, 200, .25);
+    transition: filter .12s ease-out, transform .12s ease-out;
+  }
+  header button:hover, .btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  header button:active, .btn:active { filter: brightness(.96); transform: translateY(0); }
+  .btn.btn-ghost {
+    background: #fff; color: var(--accent-dark); border: 1px solid var(--border-strong); box-shadow: none;
+  }
+  .btn.btn-ghost:hover { background: var(--panel-bg); }
+  /* "처음부터": 부스에서 다음 관람객이 바로 찾을 수 있게 헤더에서 가장 눈에 띄는 버튼 */
+  #btn-restart { font-size: .9rem; padding: .55rem .95rem; }
+  /* 첫 화면 예시 질문 */
+  .welcome { margin: 1.2rem 1rem .4rem; display: flex; flex-direction: column; gap: .5rem; align-items: flex-start; }
+  .welcome .welcome-title { font-size: .85rem; color: var(--muted); font-weight: 600; }
+  .welcome .example-btn {
+    border: 1px solid var(--border-strong); background: var(--bg); color: var(--accent-dark); border-radius: 999px;
+    padding: .55rem .95rem; font-size: .9rem; font-weight: 600; cursor: pointer; text-align: left; max-width: 100%;
+  }
+  .welcome .example-btn:hover { background: var(--accent-soft); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #chat-col { flex: 1 1 auto; display: flex; flex-direction: column; min-width: 0; }
+
+  /* 기억 패널: 열고 닫는 서랍(drawer) — 폰 폭에서는 상시 사이드바가 들어갈 자리가 없어서. */
+  #drawer-backdrop {
+    position: absolute; inset: 0; background: rgba(15, 32, 39, .35);
+    opacity: 0; pointer-events: none; transition: opacity .2s ease; z-index: 2000;
+  }
+  #drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+  #memory-col {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 86%; max-width: 320px;
+    background: var(--panel-bg); border-left: 1px solid var(--border);
+    padding: .9rem; overflow-y: auto; z-index: 2001;
+    transform: translateX(105%); transition: transform .25s ease;
+    display: flex; flex-direction: column;
+  }
+  #memory-col.open { transform: translateX(0); }
+  #memory-col .drawer-head {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: .6rem;
+  }
+  #memory-col .drawer-head h3 { font-size: .95rem; margin: 0; color: var(--text); }
+  #memory-col .drawer-close {
+    border: none; background: none; color: var(--muted); font-size: 1.1rem; line-height: 1; cursor: pointer; padding: .2rem .4rem;
+  }
+  #memory-col .drawer-actions { margin-top: auto; display: flex; flex-direction: column; gap: .5rem; padding-top: .8rem; border-top: 1px solid var(--border); }
+  #memory-col .drawer-actions button { width: 100%; }
+
+  #log { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .6rem; }
+  .row { display: flex; gap: .4rem; }
+  .row.you { justify-content: flex-end; }
+  .row.agent { align-items: flex-end; }
+  .mini-avatar {
+    width: 24px; height: 24px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+  }
+  .bubble {
+    max-width: 80%; padding: .6rem .85rem; border-radius: var(--radius-card); white-space: pre-wrap; word-break: break-word;
+  }
+  .row.you .bubble { background: var(--accent-gradient); color: #fff; border-bottom-right-radius: 4px; }
+  .row.agent .bubble { background: var(--panel-bg); color: var(--text); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+  .row.system .bubble { background: transparent; color: var(--muted); font-size: .8rem; margin: 0 auto; }
+
+  .cards { display: flex; flex-direction: column; gap: .5rem; padding: 0 1rem; }
+  .card-group-label { font-size: .8rem; color: var(--muted); margin: .2rem 0 0; }
+  .item-card {
+    border: 1px solid var(--border); border-radius: var(--radius-card); padding: .65rem .8rem; display: flex; gap: .6rem; align-items: center;
+    background: var(--bg); box-shadow: var(--shadow-card);
+  }
+  /* Preview image: retain the existing teal card style, only upgrade verified-source cards. */
+  .item-card.has-photo { display: grid; grid-template-columns: 86px minmax(0, 1fr); align-items: center; }
+  .item-card.has-photo .item-thumb { width: 86px; height: 86px; }
+  .item-card.has-photo .item-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+  .item-card.has-photo .item-actions button { flex: 0 1 auto; }
+  .item-thumb.photo-thumb { overflow: hidden; position: relative; }
+  .media-thumb-img { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .media-preview-label { font-size: .62rem; color: var(--muted); }
+  /* 손민수위키 공유 카드 모양: 남색 상단(출처·브랜드·제품명 + 제품 사진), 아래에 배지·가격·버튼.
+     제품 사진을 실제로 받아 왔을 때만 이 모양으로 바뀌고, 없으면 아이콘 레이아웃 그대로. */
+  .item-card.wiki-card { display: block; padding: 0; overflow: hidden; }
+  .wiki-head { display: flex; gap: .75rem; align-items: center; padding: .8rem .9rem; background: #1b2557; color: #fff; }
+  .wiki-head .wiki-text { flex: 1; min-width: 0; }
+  .wiki-head .wiki-src { font-size: .68rem; letter-spacing: .01em; color: rgba(255,255,255,.72); }
+  .wiki-head .wiki-brand { font-size: .78rem; color: rgba(255,255,255,.88); margin-top: .25rem; }
+  .wiki-head .wiki-name { font-size: 1.02rem; font-weight: 700; line-height: 1.3; margin-top: .1rem; overflow-wrap: anywhere; }
+  .wiki-head .wiki-photo { width: 92px; height: 92px; flex: 0 0 92px; border-radius: 12px; background: #fff; overflow: hidden; }
+  .wiki-head .wiki-photo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .wiki-body { padding: .6rem .9rem .75rem; display: flex; flex-direction: column; gap: .45rem; }
+  .wiki-body .badge { margin-left: 0; align-self: flex-start; }
+  .wiki-body .meta { font-size: .78rem; color: var(--muted); }
+  .wiki-body .price { font-weight: 700; font-size: .95rem; color: var(--text); }
+  .wiki-body .item-actions { flex-direction: row; flex-wrap: wrap; }
+  .wiki-body .item-actions button { flex: 0 1 auto; }
+  @media (max-width: 420px) { .wiki-head .wiki-photo { width: 76px; height: 76px; flex-basis: 76px; } }
+  .stop.has-photo .place-photo { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex: 0 0 72px; background: var(--accent-soft); }
+  .stop.has-photo .body { min-width: 0; flex: 1; }
+  .item-thumb {
+    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-size: 1.3rem; color: var(--accent-dark);
+    background: var(--accent-soft);
+  }
+  .item-info { flex: 1; min-width: 0; }
+  .item-info .title { font-weight: 600; font-size: .92rem; color: var(--text); }
+  .item-info .meta { font-size: .78rem; color: var(--muted); }
+  .item-info .price { font-weight: 700; font-size: .95rem; margin-top: .1rem; color: var(--text); }
+  .badge {
+    display: inline-block; font-size: .68rem; padding: .1rem .45rem; border-radius: 999px; color: #fff; margin-left: .4rem;
+    vertical-align: middle;
+  }
+  .badge.original { background: var(--badge-original); }
+  .badge.alt { background: var(--badge-alt); }
+  .badge.sample { background: #c08a2e; }
+  .badge.similar { background: #6e6ec0; }
+  .badge.qloo { background: #6b4cff; }
+  .qloo-label { color: #6b4cff; font-weight: 600; }
+  .qloo-card { border-left: 3px solid #6b4cff; }
+  .qloo-meter { height: 4px; border-radius: 4px; background: rgba(107,76,255,.15); margin-top: .35rem; overflow: hidden; max-width: 160px; }
+  .qloo-meter span { display: block; height: 100%; background: #6b4cff; }
+  .powered { font-size: .68rem; color: var(--muted); letter-spacing: .01em; }
+  .item-actions { display: flex; flex-direction: column; gap: .35rem; flex-shrink: 0; }
+  .wish-btn, .buy-btn {
+    border: 1px solid var(--border-strong); color: var(--accent-dark); background: #fff; border-radius: var(--radius-control);
+    padding: .35rem .65rem; font-size: .8rem; cursor: pointer; flex-shrink: 0; white-space: nowrap;
+    transition: filter .12s ease-out, transform .12s ease-out;
+  }
+  .wish-btn:hover { background: var(--panel-bg); }
+  .wish-btn:disabled { opacity: .5; cursor: default; }
+  .buy-btn { background: var(--accent-gradient); color: #fff; border: none; box-shadow: 0 6px 14px rgba(2, 165, 200, .22); }
+  .buy-btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .link-btn {
+    border: none; background: none; color: var(--muted); font-size: .74rem; text-decoration: underline;
+    cursor: pointer; padding: .1rem 0; text-align: left;
+  }
+  .link-btn:hover { color: var(--accent-dark); }
+
+  #purchase-counter {
+    position: absolute; right: 1rem; bottom: 4.5rem; background: var(--accent-dark); color: #fff;
+    padding: .45rem .8rem; border-radius: 999px; font-size: .78rem; box-shadow: 0 6px 16px rgba(15, 32, 39, .25);
+    z-index: 10; opacity: 0; transition: opacity .2s;
+  }
+  #purchase-counter.show { opacity: 1; }
+
+  #affiliate-toast {
+    position: absolute; top: 1rem; left: 50%; transform: translateX(-50%); background: var(--text); color: #fff;
+    padding: .55rem 1rem; border-radius: 999px; font-size: .82rem; box-shadow: 0 6px 16px rgba(15, 32, 39, .3);
+    z-index: 30; opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  #affiliate-toast.show { opacity: 1; }
+
+  .timeline { border: 1px solid var(--border); border-radius: var(--radius-card); padding: .75rem .85rem; background: var(--bg); box-shadow: var(--shadow-card); }
+  .timeline h4 { margin: 0 0 .4rem; font-size: .9rem; color: var(--text); }
+  .stop { display: flex; gap: .6rem; padding: .35rem 0; border-top: 1px dashed var(--border); }
+  .stop:first-child { border-top: none; }
+  .stop .time { width: 46px; flex-shrink: 0; font-weight: 700; font-size: .82rem; color: var(--accent-dark); }
+  .stop .body .name { font-weight: 600; font-size: .88rem; color: var(--text); }
+  .stop .body .meta { font-size: .76rem; color: var(--muted); }
+
+  /* Leaflet이 내부적으로 쓰는 z-index(패널·컨트롤 등 1000대)가 바깥(서랍·배경막)으로 새서
+     기억 서랍 위로 지도가 튀어나오던 문제 — isolation으로 별도 쌓임 맥락을 만들어 가둔다. */
+  .route-map { height: 220px; border-radius: var(--radius-control); margin-top: .6rem; background: var(--panel-bg);
+    position: relative; z-index: 0; isolation: isolate; }
+  .route-map-pin {
+    width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center; font-size: .75rem; font-weight: 700;
+    border: 2px solid #fff; box-shadow: 0 1px 4px rgba(2,96,118,.35);
+  }
+  /* OSM 기본 타일의 진한 색을 눌러 준다. 타일 레이어에만 걸어서 마커·경로선은 청록색 그대로. */
+  .route-map .leaflet-tile-pane { filter: grayscale(0.7) brightness(1.05) contrast(0.92); }
+  /* 첫 장소(가장 우선인 곳, 보통 최애가 다녀간 곳)는 진한 청록으로 출발점 표시 */
+  .route-map-pin.start { background: var(--accent-dark); }
+
+  form#composer {
+    display: flex; gap: .5rem; padding: .7rem .9rem; border-top: 1px solid var(--border); flex-shrink: 0;
+    background: var(--bg);
+  }
+  form#composer input {
+    flex: 1; padding: .65rem .85rem; border: 1px solid var(--border-strong); border-radius: var(--radius-control); font-size: .95rem;
+    background: var(--panel-bg); color: var(--text);
+  }
+  form#composer input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  form#composer button {
+    background: var(--accent-gradient); color: #fff; border: none; border-radius: var(--radius-control);
+    padding: .65rem 1.1rem; font-size: .95rem; font-weight: 600; cursor: pointer;
+    box-shadow: 0 6px 14px rgba(2, 165, 200, .25);
+  }
+  form#composer button:hover { filter: brightness(1.06); }
+
+  #memory-col .section { margin-bottom: 1rem; }
+  #memory-col ul { margin: 0; padding: 0; list-style: none; font-size: .82rem; }
+  #memory-col li.mem-row { display: flex; align-items: flex-start; gap: .35rem; margin-bottom: .3rem; }
+  #memory-col li.mem-row .mem-text { flex: 1; min-width: 0; }
+  #memory-col .mem-del {
+    flex-shrink: 0; border: none; background: none; color: var(--muted); cursor: pointer;
+    font-size: .85rem; line-height: 1; padding: 0 .2rem;
+  }
+  #memory-col .mem-del:hover { color: #c0392b; }
+  #memory-col .empty { font-size: .78rem; color: var(--muted); }
+  /* 최애 여러 명: "최애: BOYNEXTDOOR 태산 ✕ · 이한 ✕ · aespa 카리나 ✕" — 각각 지울 수 있다. */
+  #memory-col .fav-line { font-size: .82rem; margin-bottom: .3rem; line-height: 1.7; }
+  #memory-col .fav-chip { display: inline-flex; align-items: center; gap: .1rem; white-space: nowrap; }
+  #memory-col .fav-chip .mem-del { padding: 0 .15rem; }
+</style>
+
+<div class="phone-shell">
+  <header>
+    <div class="avatar" id="avatar">🙂</div>
+    <div class="head-text">
+      <h1>FanMate</h1>
+      <div class="powered">fan-verified data × Qloo taste AI</div>
+      <div id="avatar-status"></div>
+    </div>
+    <div class="spacer"></div>
+    <button id="btn-memory-toggle" class="btn btn-ghost" type="button" data-i18n="btn.memory">덕질 기록</button>
+    <button id="btn-restart" class="btn" type="button" data-i18n="btn.restart">처음부터</button>
+  </header>
+
+  <main>
+    <section id="chat-col">
+      <div id="log"></div>
+      <form id="composer" autocomplete="off">
+        <input id="text" placeholder="덕메에게 말해보세요 (예: 내 최애는 위시 시온이야)">
+        <button type="submit" data-i18n="btn.send">보내기</button>
+      </form>
+    </section>
+  </main>
+
+  <div id="drawer-backdrop"></div>
+  <aside id="memory-col">
+    <div class="drawer-head">
+      <h3 data-i18n="panel.title">내 덕질 기록</h3>
+      <button id="btn-drawer-close" class="drawer-close" type="button" aria-label="닫기" data-i18n-aria="btn.close">✕</button>
+    </div>
+    <div class="section">
+      <div id="memory-list"></div>
+    </div>
+    <div class="section">
+      <strong style="font-size:.8rem;" data-i18n="panel.wishlist">찜한 아이템</strong>
+      <div id="wishlist-list"></div>
+    </div>
+    <div class="section">
+      <strong style="font-size:.8rem;" data-i18n="panel.owned">보유 아이템</strong>
+      <div id="owned-list"></div>
+    </div>
+    <div class="section">
+      <strong style="font-size:.8rem;" data-i18n="panel.visited">다녀온 성지</strong>
+      <div id="visited-list"></div>
+    </div>
+    <div class="drawer-actions">
+      <button id="btn-new-chat" class="btn btn-ghost" type="button" data-i18n="btn.newChat">새 대화</button>
+      <button id="btn-reset-memory" class="btn btn-ghost" type="button" data-i18n="btn.resetMemory">기억 초기화</button>
+    </div>
+  </aside>
+
+  <div id="purchase-counter">구매 연결 0건</div>
+  <div id="affiliate-toast" data-i18n="toast.affiliate">손민수위키 제휴 링크로 이동해요</div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/markers.js"></script>
+<script>
+  const log = document.getElementById('log');
+  const avatar = document.getElementById('avatar');
+  const avatarStatusEl = document.getElementById('avatar-status');
+  const bubbles = new Map(); // message id -> element
+  const miniAvatars = new Map(); // message id -> mini-avatar element (말풍선 옆 작은 얼굴)
+
+  // 화면 고정 문구 다국어. 사용자가 마지막으로 보낸 메시지의 언어(ko/en/ja/zh-CN/zh-TW)를 따라가고,
+  // 사전에 없는 키는 한국어로 대체한다. 브랜드·상품명·멤버명·장소명(데이터 값)은 번역하지 않는다.
+  const I18N = {
+    ko: {
+      'status.think': '덕메가 찾는 중…', 'status.happy': '찾았다!', 'status.cheer': '축하해!', 'status.sorry': '음… 잘 모르겠어',
+      'note.searching': '찾고 있어요…',
+      'note.unverified': '아직 확인되지 않은 정보예요. 손민수위키에 질문을 남겨 보면 다른 팬들이 찾아줄 수 있어요.',
+      'badge.original': '원래 제품(검수됨)', 'badge.sample': '예시 대체템', 'badge.similar': '유사 제품(팬 검수)',
+      'badge.sourceOnly': 'X 팬 계정 출처 · 미검증', 'badge.alt': '대체템',
+      'price.unknown': '가격 미확인', 'price.sourceOnly': '참고 가격/재고 미검증', 'price.workbench': '작업대 참고 가격',
+      'stock.unknown': '재고 미확인', 'price.savings': '원래 제품보다 {amount} 저렴',
+      'btn.buy': '바로 구매', 'btn.wish': '찜하기', 'msg.wish': '{name} ({id}) 찜해줘', 'btn.wiki': '손민수위키에서 보기',
+      'btn.xSource': 'X 원본에서 보기', 'btn.checkSeller': '판매처 확인하기', 'label.wikiPreview': '위키 공유 미리보기',
+      'alt.item': '손민수위키에 등록된 상품 이미지', 'alt.place': 'reCree에 등록된 장소 이미지',
+      'alt.placePreview': '{name} 상세 페이지 미리보기', 'alt.placePhoto': '{name} 장소 사진',
+      'redirect.title': '이동 중…', 'redirect.body': '외부 판매처로 이동 중…',
+      'counter.purchase': '구매 연결 {n}건', 'toast.affiliate': '손민수위키 제휴 링크로 이동해요',
+      'qloo.brands': 'Qloo · {seed}와 취향이 비슷한 브랜드', 'qloo.places': 'Qloo · {area}에서 네 취향에 맞는 곳', 'qloo.artists': 'Qloo · {seed}를 좋아하면 이 아티스트도', 'qloo.badge': 'Qloo 취향 매치', 'qloo.match': '취향 일치도', 'qloo.note': '브랜드 단위 추천이에요. 가격은 각 브랜드에서 확인해 주세요.', 'qloo.search': '찾아보기',
+      'group.alternatives': '대체템',
+      'route.title': '{area} 코스', 'route.days': '{n}일', 'route.day': '{n}일차', 'route.empty': '짤 수 있는 코스가 없어요.',
+      'tag.visitedBy': '{name}{josa} 다녀간 곳', 'tag.visitedByLatin': '{name} 방문', 'tag.favMember': '최애가 다녀간 곳', 'tag.favGroup': '같은 그룹이 다녀간 곳', 'tag.fandom': '팬덤 성지', 'tag.brand': '착용 브랜드 매장',
+      'route.visit': '방문', 'route.mustTry': '추천 메뉴', 'btn.naverMap': '네이버지도', 'btn.recree': 'reCree에서 보기',
+      'wish.already': '이미 위시리스트에 있어요: {name}', 'wish.added': '위시리스트에 추가했어요: {name}',
+      'owned.already': '이미 보유 중이에요: {name}', 'owned.moved': '보유 아이템으로 옮겼어요: {name} 🎉',
+      'visited.marked': '다녀온 걸로 기록했어요: {names}', 'visited.allAlready': '이미 전부 방문 기록에 있었어요.',
+      'conn.lost': '연결이 잠깐 끊겼어, 다시 말해줄래?',
+      'placeholder.initial': '덕메에게 말해보세요 (예: 내 최애는 위시 시온이야)', 'placeholder.short': '덕메에게 물어보세요',
+      'btn.restart': '처음부터', 'welcome.title': '이렇게 물어볼 수 있어요', 'limit.user': '이번 대화에서 나눌 수 있는 말을 다 썼어요. "처음부터"를 누르면 새로 시작할 수 있어요.', 'limit.global': '지금 덕메를 찾는 사람이 너무 많아요. 잠시 후에 다시 말 걸어 줘!', 'limit.busy': '지금 자리가 꽉 찼어요. 잠깐 뒤에 다시 시도해 줘!', 'limit.newUser': '잠시 후에 다시 시도해 주세요.',
+      'btn.send': '보내기', 'btn.memory': '덕질 기록', 'btn.close': '닫기', 'btn.newChat': '새 대화', 'btn.resetMemory': '기억 초기화',
+      'chat.new': '새 대화를 시작했어요. (기억은 유지돼요)',
+      'confirm.reset': '대화와 기억(찜/보유/방문 포함)을 전부 초기화할까요? 시연을 처음부터 다시 할 때 쓰세요.',
+      'chat.resetDone': '기억을 전부 초기화했어요.',
+      'panel.title': '내 덕질 기록', 'panel.wishlist': '찜한 아이템', 'panel.owned': '보유 아이템', 'panel.visited': '다녀온 성지',
+      'panel.memEmpty': '아직 기억한 게 없어요.', 'panel.listEmpty': '아직 없어요.', 'btn.delete': '삭제',
+      'profile.favorites': '최애', 'profile.title': '내 취향: ', 'profile.group': '최애 그룹 {v}', 'profile.member': '최애 {v}', 'profile.budget': '예산 {v}',
+      'profile.colors': '선호 색 {v}', 'profile.top': '상의 {v}', 'profile.bottom': '하의 {v}', 'profile.shoes': '신발 {v}',
+      'profile.mode': '모드 {v}', 'mode.travel': '성지 중심', 'mode.shopping': '쇼핑 중심', 'mode.both': '쇼핑·성지', 'profile.language': '언어 {v}',
+    },
+    en: {
+      'status.think': 'FanMate is looking…', 'status.happy': 'Found it!', 'status.cheer': 'Congrats!', 'status.sorry': "Hmm… I'm not sure",
+      'note.searching': 'Searching…',
+      'note.unverified': "This info hasn't been confirmed yet. Try asking on Sonminsoo Wiki — other fans may be able to find it.",
+      'badge.original': 'Original item (verified)', 'badge.sample': 'Sample alternative', 'badge.similar': 'Similar item (fan-checked)',
+      'badge.sourceOnly': 'From an X fan account · unverified', 'badge.alt': 'Alternative',
+      'price.unknown': 'Price unknown', 'price.sourceOnly': 'Reference price/stock unverified', 'price.workbench': 'Reference price',
+      'stock.unknown': 'Stock unknown', 'price.savings': '{amount} cheaper than the original',
+      'btn.buy': 'Buy now', 'btn.wish': 'Add to wishlist', 'msg.wish': 'Add {name} ({id}) to my wishlist', 'btn.wiki': 'View on Sonminsoo Wiki',
+      'btn.xSource': 'View original on X', 'btn.checkSeller': 'Check seller', 'label.wikiPreview': 'Wiki share preview',
+      'alt.item': 'Product image from Sonminsoo Wiki', 'alt.place': 'Place image from reCree',
+      'alt.placePreview': '{name} page preview', 'alt.placePhoto': 'Photo of {name}',
+      'redirect.title': 'Redirecting…', 'redirect.body': 'Taking you to the seller…',
+      'counter.purchase': 'Purchase links: {n}', 'toast.affiliate': 'Opening a Sonminsoo Wiki partner link',
+      'qloo.brands': 'Qloo · brands with a taste profile like {seed}', 'qloo.places': 'Qloo · places in {area} that fit your taste', 'qloo.artists': 'Qloo · if you love {seed}, try', 'qloo.badge': 'Qloo taste match', 'qloo.match': 'Taste match', 'qloo.note': 'Brand-level picks. Check prices at each brand.', 'qloo.search': 'Look it up',
+      'group.alternatives': 'Alternatives',
+      'route.title': '{area} route', 'route.days': '{n} days', 'route.day': 'Day {n}', 'route.empty': "Couldn't build a route.",
+      'tag.visitedBy': 'Visited by {name}', 'tag.favMember': 'Your bias visited', 'tag.favGroup': 'Same group visited', 'tag.fandom': 'Fan spot', 'tag.brand': 'Store of a worn brand',
+      'route.visit': 'Visited by', 'route.mustTry': 'Must try', 'btn.naverMap': 'Naver Map', 'btn.recree': 'View on reCree',
+      'wish.already': 'Already in your wishlist: {name}', 'wish.added': 'Added to your wishlist: {name}',
+      'owned.already': 'Already owned: {name}', 'owned.moved': 'Moved to owned items: {name} 🎉',
+      'visited.marked': 'Marked as visited: {names}', 'visited.allAlready': 'All of these were already marked as visited.',
+      'conn.lost': 'Lost connection for a moment — could you say that again?',
+      'placeholder.initial': 'Talk to FanMate (e.g. My bias is SION from NCT WISH)', 'placeholder.short': 'Ask FanMate',
+      'btn.restart': 'Start over', 'welcome.title': 'Try asking', 'limit.user': 'You\'ve reached the chat limit for this session. Tap "Start over" to begin again.', 'limit.global': 'Lots of fans are talking to FanMate right now. Please try again in a little while!', 'limit.busy': 'All seats are taken right now. Please try again in a moment!', 'limit.newUser': 'Please try again in a little while.',
+      'btn.send': 'Send', 'btn.memory': 'My Fan Log', 'btn.close': 'Close', 'btn.newChat': 'New chat', 'btn.resetMemory': 'Reset memory',
+      'chat.new': 'Started a new chat. (Memory is kept)',
+      'confirm.reset': 'Reset the chat and all memory (including wishlist/owned/visited)? Use this to restart the demo.',
+      'chat.resetDone': 'All memory has been reset.',
+      'panel.title': 'My Fan Log', 'panel.wishlist': 'Wishlist', 'panel.owned': 'Owned items', 'panel.visited': 'Visited spots',
+      'panel.memEmpty': "Nothing remembered yet.", 'panel.listEmpty': 'Nothing yet.', 'btn.delete': 'Delete',
+      'profile.favorites': 'Faves', 'profile.title': 'My taste: ', 'profile.group': 'Fave group {v}', 'profile.member': 'Bias {v}', 'profile.budget': 'Budget {v}',
+      'profile.colors': 'Colors {v}', 'profile.top': 'Top {v}', 'profile.bottom': 'Bottom {v}', 'profile.shoes': 'Shoes {v}',
+      'profile.mode': 'Mode {v}', 'mode.travel': 'Fan spots', 'mode.shopping': 'Shopping', 'mode.both': 'Shopping & spots', 'profile.language': 'Language {v}',
+    },
+    ja: {
+      'status.think': 'ドクメが探し中…', 'status.happy': '見つけた!', 'status.cheer': 'おめでとう!', 'status.sorry': 'うーん…よく分からないや',
+      'note.searching': '探しています…',
+      'note.unverified': 'まだ確認されていない情報です。ソンミンスWikiで質問すると、ほかのファンが見つけてくれるかも。',
+      'badge.original': '本物のアイテム(確認済み)', 'badge.sample': '例の代わりアイテム', 'badge.similar': '似ているアイテム(ファン確認)',
+      'badge.sourceOnly': 'Xファンアカウント情報・未確認', 'badge.alt': '代わりアイテム',
+      'price.unknown': '価格未確認', 'price.sourceOnly': '参考価格・在庫は未確認', 'price.workbench': '参考価格',
+      'stock.unknown': '在庫未確認', 'price.savings': '本物より{amount}安い',
+      'btn.buy': '今すぐ購入', 'btn.wish': 'お気に入り', 'msg.wish': '{name} ({id}) をお気に入りに入れて', 'btn.wiki': 'ソンミンスWikiで見る',
+      'btn.xSource': 'Xの元投稿を見る', 'btn.checkSeller': '販売先を確認', 'label.wikiPreview': 'Wiki共有プレビュー',
+      'alt.item': 'ソンミンスWikiの商品画像', 'alt.place': 'reCreeの場所画像',
+      'alt.placePreview': '{name} 詳細ページのプレビュー', 'alt.placePhoto': '{name} の写真',
+      'redirect.title': '移動中…', 'redirect.body': '外部の販売ページへ移動中…',
+      'counter.purchase': '購入リンク {n}件', 'toast.affiliate': 'ソンミンスWikiの提携リンクへ移動します',
+      'qloo.brands': 'Qloo · {seed}と好みが近いブランド', 'qloo.places': 'Qloo · {area}であなた好みの場所', 'qloo.artists': 'Qloo · {seed}が好きならこちらも', 'qloo.badge': 'Qloo テイストマッチ', 'qloo.match': '好み一致度', 'qloo.note': 'ブランド単位のおすすめです。価格は各ブランドでご確認ください。', 'qloo.search': '調べる',
+      'group.alternatives': '代わりアイテム',
+      'route.title': '{area} コース', 'route.days': '{n}日間', 'route.day': '{n}日目', 'route.empty': 'コースを作れませんでした。',
+      'tag.visitedBy': '{name}が訪れた場所', 'tag.favMember': '推しが行った場所', 'tag.favGroup': '同じグループが行った場所', 'tag.fandom': 'ファンの聖地', 'tag.brand': '着用ブランドの店舗',
+      'route.visit': '訪問', 'route.mustTry': 'おすすめ', 'btn.naverMap': 'NAVERマップ', 'btn.recree': 'reCreeで見る',
+      'wish.already': 'もうお気に入りに入っています: {name}', 'wish.added': 'お気に入りに追加しました: {name}',
+      'owned.already': 'もう持っています: {name}', 'owned.moved': '持っているアイテムに移しました: {name} 🎉',
+      'visited.marked': '行った場所として記録しました: {names}', 'visited.allAlready': 'すべてもう訪問済みでした。',
+      'conn.lost': '接続が一瞬切れちゃった。もう一度言ってくれる?',
+      'placeholder.initial': 'ドクメに話しかけてね(例: 推しはNCT WISHのSION)', 'placeholder.short': 'ドクメに聞いてみて',
+      'btn.restart': '最初から', 'welcome.title': 'こんなふうに聞いてみて', 'limit.user': 'この会話で話せる回数の上限に達しました。「最初から」を押すと新しく始められます。', 'limit.global': 'いまドクメに話しかけている人がとても多いです。少し時間をおいてもう一度話しかけてね!', 'limit.busy': 'いま満席です。少ししてからもう一度試してね!', 'limit.newUser': 'しばらくしてからもう一度お試しください。',
+      'btn.send': '送信', 'btn.memory': '推し活記録', 'btn.close': '閉じる', 'btn.newChat': '新しい会話', 'btn.resetMemory': '記憶をリセット',
+      'chat.new': '新しい会話を始めました。(記憶はそのまま)',
+      'confirm.reset': '会話と記憶(お気に入り・所持・訪問を含む)をすべてリセットしますか?デモを最初からやり直すときに使います。',
+      'chat.resetDone': '記憶をすべてリセットしました。',
+      'panel.title': '推し活記録', 'panel.wishlist': 'お気に入り', 'panel.owned': '持っているアイテム', 'panel.visited': '行った聖地',
+      'panel.memEmpty': 'まだ何も覚えていません。', 'panel.listEmpty': 'まだありません。', 'btn.delete': '削除',
+      'profile.favorites': '推し', 'profile.title': 'わたしの好み: ', 'profile.group': '推しグループ {v}', 'profile.member': '推し {v}', 'profile.budget': '予算 {v}',
+      'profile.colors': '好きな色 {v}', 'profile.top': 'トップス {v}', 'profile.bottom': 'ボトムス {v}', 'profile.shoes': '靴 {v}',
+      'profile.mode': 'モード {v}', 'mode.travel': '聖地中心', 'mode.shopping': 'ショッピング中心', 'mode.both': 'ショッピング・聖地', 'profile.language': '言語 {v}',
+    },
+    'zh-CN': {
+      'status.think': 'FanMate 正在找…', 'status.happy': '找到了!', 'status.cheer': '恭喜!', 'status.sorry': '嗯…我不太确定',
+      'note.searching': '正在查找…',
+      'note.unverified': '这是尚未确认的信息。可以去孙敏秀Wiki提问,其他粉丝也许能帮你找到。',
+      'badge.original': '原款(已核实)', 'badge.sample': '示例平替', 'badge.similar': '相似款(粉丝核对)',
+      'badge.sourceOnly': 'X粉丝账号来源·未核实', 'badge.alt': '平替',
+      'price.unknown': '价格未确认', 'price.sourceOnly': '参考价格/库存未核实', 'price.workbench': '参考价格',
+      'stock.unknown': '库存未确认', 'price.savings': '比原款便宜{amount}',
+      'btn.buy': '立即购买', 'btn.wish': '加入心愿单', 'msg.wish': '把 {name} ({id}) 加入心愿单', 'btn.wiki': '在孙敏秀Wiki查看',
+      'btn.xSource': '查看X原帖', 'btn.checkSeller': '查看卖家', 'label.wikiPreview': 'Wiki分享预览',
+      'alt.item': '孙敏秀Wiki登记的商品图片', 'alt.place': 'reCree登记的地点图片',
+      'alt.placePreview': '{name} 详情页预览', 'alt.placePhoto': '{name} 地点照片',
+      'redirect.title': '跳转中…', 'redirect.body': '正在跳转到外部卖家…',
+      'counter.purchase': '购买链接 {n}次', 'toast.affiliate': '正在打开孙敏秀Wiki合作链接',
+      'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
+      'group.alternatives': '平替',
+      'route.title': '{area} 路线', 'route.days': '{n}天', 'route.day': '第{n}天', 'route.empty': '没能排出路线。',
+      'tag.visitedBy': '{name}去过的地方', 'tag.favMember': '本命去过的地方', 'tag.favGroup': '同团成员去过的地方', 'tag.fandom': '粉丝圣地', 'tag.brand': '同款品牌门店',
+      'route.visit': '到访', 'route.mustTry': '推荐', 'btn.naverMap': 'Naver地图', 'btn.recree': '在reCree查看',
+      'wish.already': '已经在心愿单里了: {name}', 'wish.added': '已加入心愿单: {name}',
+      'owned.already': '已经拥有: {name}', 'owned.moved': '已移到已拥有: {name} 🎉',
+      'visited.marked': '已记录为去过: {names}', 'visited.allAlready': '这些都已经在到访记录里了。',
+      'conn.lost': '连接刚刚断了一下,能再说一次吗?',
+      'placeholder.initial': '和 FanMate 聊聊吧(例: 我的本命是NCT WISH的SION)', 'placeholder.short': '问问 FanMate',
+      'btn.restart': '重新开始', 'welcome.title': '可以这样问', 'limit.user': '本次对话的次数已用完。点“重新开始”就能重新开始。', 'limit.global': '现在找 FanMate 的人太多了，请稍后再试！', 'limit.busy': '现在人满了，请稍等一下再试！', 'limit.newUser': '请稍后再试。',
+      'btn.send': '发送', 'btn.memory': '追星记录', 'btn.close': '关闭', 'btn.newChat': '新对话', 'btn.resetMemory': '重置记忆',
+      'chat.new': '已开始新对话。(记忆会保留)',
+      'confirm.reset': '要重置对话和全部记忆(包括心愿单/已拥有/到访)吗?用于从头重新演示。',
+      'chat.resetDone': '已重置全部记忆。',
+      'panel.title': '追星记录', 'panel.wishlist': '心愿单', 'panel.owned': '已拥有', 'panel.visited': '去过的圣地',
+      'panel.memEmpty': '还没有记住任何事。', 'panel.listEmpty': '还没有。', 'btn.delete': '删除',
+      'profile.favorites': '本命', 'profile.title': '我的喜好: ', 'profile.group': '本命团 {v}', 'profile.member': '本命 {v}', 'profile.budget': '预算 {v}',
+      'profile.colors': '喜欢的颜色 {v}', 'profile.top': '上衣 {v}', 'profile.bottom': '下装 {v}', 'profile.shoes': '鞋 {v}',
+      'profile.mode': '模式 {v}', 'mode.travel': '圣地为主', 'mode.shopping': '购物为主', 'mode.both': '购物·圣地', 'profile.language': '语言 {v}',
+    },
+    'zh-TW': {
+      'status.think': 'FanMate 正在找…', 'status.happy': '找到了!', 'status.cheer': '恭喜!', 'status.sorry': '嗯…我不太確定',
+      'note.searching': '正在查找…',
+      'note.unverified': '這是尚未確認的資訊。可以到孫敏秀Wiki提問,其他粉絲也許能幫你找到。',
+      'badge.original': '原款(已核實)', 'badge.sample': '示例平替', 'badge.similar': '相似款(粉絲核對)',
+      'badge.sourceOnly': 'X粉絲帳號來源·未核實', 'badge.alt': '平替',
+      'price.unknown': '價格未確認', 'price.sourceOnly': '參考價格/庫存未核實', 'price.workbench': '參考價格',
+      'stock.unknown': '庫存未確認', 'price.savings': '比原款便宜{amount}',
+      'btn.buy': '立即購買', 'btn.wish': '加入願望清單', 'msg.wish': '把 {name} ({id}) 加入願望清單', 'btn.wiki': '在孫敏秀Wiki查看',
+      'btn.xSource': '查看X原文', 'btn.checkSeller': '查看賣家', 'label.wikiPreview': 'Wiki分享預覽',
+      'alt.item': '孫敏秀Wiki登錄的商品圖片', 'alt.place': 'reCree登錄的地點圖片',
+      'alt.placePreview': '{name} 詳情頁預覽', 'alt.placePhoto': '{name} 地點照片',
+      'redirect.title': '跳轉中…', 'redirect.body': '正在前往外部賣家…',
+      'counter.purchase': '購買連結 {n}次', 'toast.affiliate': '正在開啟孫敏秀Wiki合作連結',
+      'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
+      'group.alternatives': '平替',
+      'route.title': '{area} 路線', 'route.days': '{n}天', 'route.day': '第{n}天', 'route.empty': '沒能排出路線。',
+      'tag.visitedBy': '{name}去過的地方', 'tag.favMember': '本命去過的地方', 'tag.favGroup': '同團成員去過的地方', 'tag.fandom': '粉絲聖地', 'tag.brand': '同款品牌門市',
+      'route.visit': '到訪', 'route.mustTry': '推薦', 'btn.naverMap': 'Naver地圖', 'btn.recree': '在reCree查看',
+      'wish.already': '已經在願望清單裡了: {name}', 'wish.added': '已加入願望清單: {name}',
+      'owned.already': '已經擁有: {name}', 'owned.moved': '已移到已擁有: {name} 🎉',
+      'visited.marked': '已記錄為去過: {names}', 'visited.allAlready': '這些都已經在到訪紀錄裡了。',
+      'conn.lost': '連線剛剛斷了一下,能再說一次嗎?',
+      'placeholder.initial': '和 FanMate 聊聊吧(例: 我的本命是NCT WISH的SION)', 'placeholder.short': '問問 FanMate',
+      'btn.restart': '重新開始', 'welcome.title': '可以這樣問', 'limit.user': '本次對話的次數已用完。點「重新開始」就能重新開始。', 'limit.global': '現在找 FanMate 的人太多了，請稍後再試！', 'limit.busy': '現在人滿了，請稍等一下再試！', 'limit.newUser': '請稍後再試。',
+      'btn.send': '傳送', 'btn.memory': '追星紀錄', 'btn.close': '關閉', 'btn.newChat': '新對話', 'btn.resetMemory': '重置記憶',
+      'chat.new': '已開始新對話。(記憶會保留)',
+      'confirm.reset': '要重置對話和全部記憶(包括願望清單/已擁有/到訪)嗎?用於從頭重新示範。',
+      'chat.resetDone': '已重置全部記憶。',
+      'panel.title': '追星紀錄', 'panel.wishlist': '願望清單', 'panel.owned': '已擁有', 'panel.visited': '去過的聖地',
+      'panel.memEmpty': '還沒有記住任何事。', 'panel.listEmpty': '還沒有。', 'btn.delete': '刪除',
+      'profile.favorites': '本命', 'profile.title': '我的喜好: ', 'profile.group': '本命團 {v}', 'profile.member': '本命 {v}', 'profile.budget': '預算 {v}',
+      'profile.colors': '喜歡的顏色 {v}', 'profile.top': '上衣 {v}', 'profile.bottom': '下身 {v}', 'profile.shoes': '鞋 {v}',
+      'profile.mode': '模式 {v}', 'mode.travel': '聖地為主', 'mode.shopping': '購物為主', 'mode.both': '購物·聖地', 'profile.language': '語言 {v}',
+    },
+  };
+  // 덕메 답변에 "아직 확인되지 않은 정보" 안내가 이미 들어 있는지 언어별로 확인한다.
+  const UNVERIFIED_IN_REPLY = /확인되지 않은|not (?:been )?(?:confirmed|verified)|unverified|確認されていない|未確認|未确认|尚未确认/i;
+
+  let uiLang = 'en';
+
+  // "사쿠야가 다녀간 곳" / "태산이 다녀간 곳": 한국어는 aliases의 한글 이름에 받침 따라 이/가를 붙이고,
+  // 한글 이름이 없으면 "BOYNEXTDOOR 방문"처럼 조사 없이. 다른 언어는 데이터 이름 그대로(번역하지 않음).
+  function subjectJosa(word) {
+    const code = word.charCodeAt(word.length - 1) - 0xac00;
+    return code >= 0 && code <= 11171 && code % 28 !== 0 ? '이' : '가';
+  }
+  function visitedByLabel(label) {
+    if (uiLang !== 'ko') return t('tag.visitedBy', { name: label.name });
+    const ko = label.nameKo && /[가-힣]$/.test(label.nameKo) ? label.nameKo : null;
+    return ko ? t('tag.visitedBy', { name: ko, josa: subjectJosa(ko) }) : t('tag.visitedByLatin', { name: label.nameKo || label.name });
+  }
+  function t(key, vars) {
+    let text = (I18N[uiLang] && I18N[uiLang][key]) ?? I18N.ko[key] ?? key;
+    if (vars) for (const [k, v] of Object.entries(vars)) text = text.split(`{${k}}`).join(String(v));
+    return text;
+  }
+
+  // 화면 언어는 직접 추측하지 않고 서버가 판별한 대화 언어(source: 'lang', /state의 replyLanguage)를 따른다.
+
+  // HTML에 박혀 있는 고정 문구(버튼·패널 제목·placeholder 등)를 현재 언어로 다시 쓴다.
+  let hasSentMessage = false;
+  function applyStaticI18n() {
+    document.documentElement.lang = uiLang;
+    for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
+    for (const el of document.querySelectorAll('[data-i18n-aria]')) el.setAttribute('aria-label', t(el.dataset.i18nAria));
+    document.getElementById('text').placeholder = t(hasSentMessage ? 'placeholder.short' : 'placeholder.initial');
+  }
+  function setUiLang(lang) {
+    if (!I18N[lang] || lang === uiLang) return;
+    uiLang = lang;
+    applyStaticI18n();
+    for (const el of document.querySelectorAll('.welcome-title')) el.textContent = t('welcome.title');
+    const info = EXPRESSIONS[currentExpression];
+    avatarStatusEl.textContent = info && info.text ? t(info.text) : '';
+    refreshMemoryPanel();
+  }
+
+  // 덕메 마스코트: assets/dukme-face.png 스타일(청록 둥근 사각형 + 흰 세로 눈 두 개) 그대로 SVG로
+  // 다시 그렸다. 기본은 그 그림 그대로, 나머지 표정은 눈 모양만 바꾸고 불필요한 장식은 넣지 않는다.
+  const DUKME_BODY = `<rect x="8" y="8" width="84" height="84" rx="20" fill="#02a5c8"/>`;
+  const DUKME_FACE = {
+    idle: `<rect x="32" y="36" width="10" height="28" rx="5" fill="#fff"/>
+      <rect x="58" y="36" width="10" height="28" rx="5" fill="#fff"/>`,
+    think: `<rect x="30" y="30" width="10" height="24" rx="5" fill="#fff"/>
+      <rect x="56" y="30" width="10" height="24" rx="5" fill="#fff"/>
+      <text x="70" y="36" font-size="24" font-weight="700" fill="#fff" font-family="-apple-system,sans-serif">?</text>`,
+    happy: `<path d="M28 50 Q37 36 46 50" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round"/>
+      <path d="M54 50 Q63 36 72 50" stroke="#fff" stroke-width="8" fill="none" stroke-linecap="round"/>`,
+    cheer: `<rect x="32" y="36" width="10" height="28" rx="5" fill="#fff"/>
+      <rect x="58" y="36" width="10" height="28" rx="5" fill="#fff"/>
+      <circle cx="23" cy="58" r="6" fill="#ffb3c6"/><circle cx="77" cy="58" r="6" fill="#ffb3c6"/>
+      <path d="M18 18 L20 24 L26 26 L20 28 L18 34 L16 28 L10 26 L16 24 Z" fill="#ffd166"/>
+      <path d="M82 18 L84 24 L90 26 L84 28 L82 34 L80 28 L74 26 L80 24 Z" fill="#ffd166"/>`,
+    sorry: `<rect x="32" y="40" width="10" height="24" rx="5" fill="#fff" transform="rotate(-12 37 52)"/>
+      <rect x="58" y="40" width="10" height="24" rx="5" fill="#fff" transform="rotate(12 63 52)"/>`,
+  };
+  function dukmeAvatarSvg(name) {
+    const face = DUKME_FACE[name] || DUKME_FACE.idle;
+    return `<svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+      ${DUKME_BODY}
+      ${face}
+    </svg>`;
+  }
+  function bounce(el) {
+    el.classList.remove('bounce');
+    // eslint-disable-next-line no-unused-expressions
+    el.offsetWidth; // 리플로우를 강제해서 같은 표정이 다시 와도 애니메이션이 재생되게 한다
+    el.classList.add('bounce');
+  }
+
+  // 표정이 너무 빨리 바뀌어서 안 보이는 문제: 각 표정은 최소 시간 동안 유지되고, 그 안에 새 요청이
+  // 오면 "다음에 보여줄 표정"만 기억해뒀다가 최소 시간이 끝나는 순간 가장 최신 요청을 적용한다.
+  const EXPRESSIONS = {
+    idle: { text: '', minMs: 0 },
+    think: { text: 'status.think', minMs: 1000 }, // text는 I18N 키
+    happy: { text: 'status.happy', minMs: 3000 },
+    cheer: { text: 'status.cheer', minMs: 3000 },
+    sorry: { text: 'status.sorry', minMs: 3000 },
+  };
+  let expressionBusyUntil = 0;
+  let latestExpressionRequest = 'idle';
+  let expressionTimer = null;
+  let currentExpression = 'idle';
+
+  function applyExpression(name) {
+    const info = EXPRESSIONS[name] || EXPRESSIONS.idle;
+    currentExpression = name;
+    avatar.innerHTML = dukmeAvatarSvg(name);
+    bounce(avatar);
+    avatarStatusEl.textContent = info.text ? t(info.text) : '';
+    expressionBusyUntil = Date.now() + info.minMs;
+  }
+  function setExpression(name) {
+    latestExpressionRequest = name;
+    const remaining = expressionBusyUntil - Date.now();
+    if (remaining <= 0) {
+      applyExpression(name);
+      if (expressionTimer) { clearTimeout(expressionTimer); expressionTimer = null; }
+    } else if (!expressionTimer) {
+      expressionTimer = setTimeout(() => {
+        expressionTimer = null;
+        applyExpression(latestExpressionRequest);
+      }, remaining);
+    }
+  }
+
+  // 같은 턴(같은 사용자 입력) 안에서 "원래 제품" 카드가 searchItem과 findAlternative 양쪽에서
+  // 중복으로 뜨지 않게, 턴마다 이미 보여준 원래 제품 카드를 추적한다.
+  let currentTurnInputId = null;
+  let turnOriginalCards = new Map(); // itemId -> card element
+  function ensureTurn(inputId) {
+    if (inputId !== currentTurnInputId) {
+      currentTurnInputId = inputId;
+      turnOriginalCards = new Map();
+      resetTurnSearch();
+    }
+  }
+
+  // 에이전트는 한 턴 안에서 조건을 바꿔 여러 번 검색하는 경우가 많아서, 검색 결과가 비었다고 바로
+  // "결과 없음"을 띄우면 카드가 나오기 전에 잘못된 안내가 먼저 보인다. 그래서 도구가 도는 동안엔
+  // "찾고 있어요…" 하나만 보여 주고, 턴이 끝날 때까지 찾은 게 하나도 없을 때만 안내를 한 번 띄운다.
+  const SEARCH_TOOLS = ['searchItem', 'findAlternative', 'findPlaces', 'planRoute'];
+  let searchingNoteEl = null;
+  let turnFoundSomething = false; // 카드를 띄웠거나 findPlaces처럼 결과가 있었음
+  let turnHadEmptySearch = false;
+  let turnAgentText = '';
+  function resetTurnSearch() {
+    clearSearchingNote();
+    turnFoundSomething = false;
+    turnHadEmptySearch = false;
+    turnAgentText = '';
+  }
+  function showSearchingNote() {
+    if (searchingNoteEl && searchingNoteEl.isConnected) return;
+    searchingNoteEl = systemNote(t('note.searching'));
+  }
+  function clearSearchingNote() {
+    if (searchingNoteEl) searchingNoteEl.remove();
+    searchingNoteEl = null;
+  }
+  function markFound() {
+    turnFoundSomething = true;
+    clearSearchingNote();
+  }
+  function finishTurnSearch() {
+    clearSearchingNote();
+    // 덕메 답변에 이미 같은 말이 있으면 화면 안내는 생략한다.
+    if (turnHadEmptySearch && !turnFoundSomething && !UNVERIFIED_IN_REPLY.test(turnAgentText)) {
+      systemNote(t('note.unverified'));
+    }
+    turnHadEmptySearch = false;
+    turnFoundSomething = false;
+    turnAgentText = '';
+  }
+
+  const won = (n) => uiLang === 'ko' ? n.toLocaleString('ko-KR') + '원' : '₩' + n.toLocaleString('en-US');
+  // price가 null인 아이템(priceText만 있거나 가격 미확인)이 있어서 won()에 바로 넘기지 않는다.
+  const priceLabel = (i) => typeof i.price === 'number' ? won(i.price) : (i.priceText || t('price.unknown'));
+  const CATEGORY_ICON = { "가방": "👜", "모자": "🧢", "신발": "👟", "목걸이": "📿", "니트": "🧶", "아우터": "🧥", "선글라스": "🕶️", "이어링": "💎", "셔츠": "👔", "반지": "💍", "벨트": "🧵" };
+  const TYPE_ICON = { "식당": "🍽️", "카페": "☕", "매장": "🏬", "포토스팟": "📸" };
+
+  function scrollDown() { log.scrollTop = log.scrollHeight; }
+
+  // **굵게** 마크다운만 안전하게 렌더링한다. 먼저 HTML을 이스케이프하고 그 다음에만 <strong>으로 바꾸므로
+  // 모델 출력에 들어있는 각괄호 등이 태그로 해석될 위험이 없다.
+  function escapeHtml(text) {
+    return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function formatInline(text) {
+    return escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  }
+  // 말풍선에 넣기 전 정리: 앞뒤 공백·줄바꿈 제거(마커가 빠진 자리에 남는 줄바꿈 포함), 줄 끝 공백 제거,
+  // 빈 줄이 여러 개 이어지면 하나로. 스트리밍 중에도 매번 전체 원문에서 다시 정리하므로
+  // 조각 끝의 줄바꿈이 잠깐 빈 줄로 보이지 않고, 다음 조각이 오면 제자리에 다시 나타난다.
+  function tidyText(text) {
+    return String(text || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/[ \t\u00a0]+$/gm, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+  // 내용이 있을 때만 말풍선을 만들고, 정리 후 비면 이미 만든 말풍선도 지운다.
+  // 덕메 답변의 표정 마커(:happy:, ": happy:", "：happy：" …)는 public/markers.js가 느슨하게 찾아 글자에서 뺀다.
+  // streaming이면 조각 끝에서 잘린 마커 후보도 잠깐 숨긴다.
+  function setBubbleText(id, cls, text, streaming) {
+    const shown = cls === 'agent' ? window.DukmeMarkers.extractMarkers(text, { streaming }).text : text;
+    const clean = tidyText(shown);
+    if (!clean) {
+      const existing = bubbles.get(id);
+      if (existing) {
+        existing.parentElement.remove();
+        bubbles.delete(id);
+        miniAvatars.delete(id);
+      }
+      return null;
+    }
+    const bubble = rowBubble(id, cls);
+    bubble.innerHTML = formatInline(clean);
+    return bubble;
+  }
+  const rawText = new Map(); // message id -> accumulated raw text (스트리밍 중에도 다시 이스케이프/볼드 처리하려고 따로 들고 있음)
+
+  function rowBubble(id, cls) {
+    if (!bubbles.has(id)) {
+      const row = document.createElement('div');
+      row.className = 'row ' + cls;
+      if (cls === 'agent') {
+        const mini = document.createElement('div');
+        mini.className = 'mini-avatar';
+        mini.innerHTML = dukmeAvatarSvg('think'); // 아직 답이 끝나기 전엔 "생각 중" 표정으로 시작
+        row.append(mini);
+        miniAvatars.set(id, mini);
+      }
+      const bubble = document.createElement('div');
+      bubble.className = 'bubble';
+      row.append(bubble);
+      log.append(row);
+      bubbles.set(id, bubble);
+    }
+    return bubbles.get(id);
+  }
+
+  function systemNote(text) {
+    const row = document.createElement('div');
+    row.className = 'row system';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble';
+    bubble.textContent = text;
+    row.append(bubble);
+    log.append(row);
+    scrollDown();
+    return row;
+  }
+
+  // Optional image enhancement: fetch a photo from an existing owner-operated detail page.
+  // No random stock photos. If missing, slow, or blocked, original emoji/layout remain.
+  async function addSourcePhoto(type, id, onImage) {
+    if (!id) return;
+    try {
+      const response = await fetch(`/media-preview?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}`);
+      if (!response.ok) return;
+      const result = await response.json();
+      if (!result.imageUrl || !/^https:\/\//i.test(result.imageUrl)) return;
+      const image = document.createElement('img');
+      image.className = 'media-thumb-img';
+      // loading='lazy'를 쓰면 안 된다: 이 img는 load가 끝난 뒤에야 카드에 붙는데, 화면에 없는 lazy 이미지는
+      // 브라우저가 아예 받지 않아서 load가 영영 안 오고 카드가 계속 아이콘으로 남는다.
+      image.decoding = 'async';
+      image.alt = type === 'item' ? t('alt.item') : t('alt.place');
+      image.referrerPolicy = 'no-referrer';
+      image.addEventListener('error', () => image.remove(), { once: true });
+      image.addEventListener('load', () => onImage(image, result.kind), { once: true });
+      image.src = result.imageUrl;
+    } catch { /* preserve original card on network or storage failure */ }
+  }
+
+  function itemCard(item) {
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    const thumb = document.createElement('div');
+    thumb.className = 'item-thumb';
+    thumb.textContent = CATEGORY_ICON[item.category] || '🏷️';
+    const info = document.createElement('div');
+    info.className = 'item-info';
+    const title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = `${item.brand} · ${item.name}`;
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (item.isOriginal ? 'original' : item.isSample ? 'sample' : item.matchType === 'similar' ? 'similar' : item.matchType === 'source_only' ? 'sample' : 'alt');
+    badge.textContent = t(item.isOriginal ? 'badge.original' : item.isSample ? 'badge.sample' : item.matchType === 'similar' ? 'badge.similar' : item.matchType === 'source_only' ? 'badge.sourceOnly' : 'badge.alt');
+    title.append(badge);
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = `${item.group} ${item.member} · ${item.situation}`;
+    const price = document.createElement('div');
+    price.className = 'price';
+    // 일부 아이템은 원화가 아니라 priceText($83, ¥1490 등)로만 가격이 있다.
+    price.textContent = priceLabel(item);
+    if (item.matchType === 'source_only') price.textContent += ' · ' + t('price.sourceOnly');
+    else if (item.priceProvenance === 'workbench_unverified') price.textContent += ' · ' + t('price.workbench');
+    else if (item.stockStatus === 'unknown') price.textContent += ' · ' + t('stock.unknown');
+    if (typeof item.savingsVsOriginal === 'number' && item.savingsVsOriginal > 0) {
+      price.textContent += ` (${t('price.savings', { amount: won(item.savingsVsOriginal) })})`;
+    }
+    info.append(title, meta, price);
+    const actions = document.createElement('div');
+    actions.className = 'item-actions';
+    if (item.isSample) {
+      // 예시 대체템: 손민수위키 검수 데이터가 아니라서 위키 링크도, 찜도 없이 "바로 구매"만 보여준다.
+      const buyBtn = document.createElement('button');
+      buyBtn.className = 'buy-btn';
+      buyBtn.textContent = t('btn.buy');
+      buyBtn.onclick = () => recordPurchaseClick(item.url);
+      if (item.url) actions.append(buyBtn);
+    } else {
+      const wishBtn = document.createElement('button');
+      wishBtn.className = 'wish-btn';
+      wishBtn.textContent = t('btn.wish');
+      // 보내는 문장도 현재 화면 언어로 — 한국어로 보내면 덕메 답변과 화면 언어가 한국어로 돌아가 버린다.
+      wishBtn.onclick = () => sendText(t('msg.wish', { name: item.name, id: item.id }));
+      actions.append(wishBtn);
+      if (item.wikiUrl) {
+        const wikiBtn = document.createElement('button');
+        wikiBtn.className = 'buy-btn';
+        wikiBtn.textContent = t('btn.wiki');
+        wikiBtn.onclick = () => window.open(item.wikiUrl, '_blank', 'noopener');
+        actions.append(wikiBtn);
+      }
+      const fanSourceUrl = /^https:\/\/(x\.com|twitter\.com)\//i.test(item.sourceUrl || '') ? item.sourceUrl : (item.fanSourceUrls || []).find(u => /^https:\/\/(x\.com|twitter\.com)\//i.test(u));
+      if (fanSourceUrl) {
+        const sourceBtn = document.createElement('button');
+        sourceBtn.className = 'link-btn';
+        sourceBtn.textContent = t('btn.xSource');
+        sourceBtn.onclick = () => window.open(fanSourceUrl, '_blank', 'noopener,noreferrer');
+        actions.append(sourceBtn);
+      }
+      // 원본 X 글은 구매 페이지가 아니다. 실제 구매 URL이 있는 경우에만 표시한다.
+      if (item.url && /^https:\/\//i.test(item.url) && !/^https:\/\/(x\.com|twitter\.com)\//i.test(item.url)) {
+        const buyLink = document.createElement('button');
+        buyLink.className = 'link-btn';
+        buyLink.textContent = t(item.matchType === 'source_only' ? 'btn.checkSeller' : 'btn.buy');
+        buyLink.onclick = () => recordPurchaseClick(item.url);
+        actions.append(buyLink);
+      }
+    }
+    card.append(thumb, info, actions);
+    // 제품 사진만 받는다(서버가 og:image 같은 멤버 합성 이미지는 돌려주지 않음). 못 받으면 아이콘 그대로.
+    if (item.wikiUrl || item.imageUrl) {
+      addSourcePhoto('item', item.id, (image, previewKind) => {
+        if (!card.isConnected || previewKind !== 'photo') return;
+        if (item.wikiUrl) {
+          toWikiCard(card, item, image, { badge, meta, price, actions });
+          return;
+        }
+        thumb.textContent = '';
+        thumb.append(image);
+        thumb.classList.add('photo-thumb');
+        card.classList.add('has-photo');
+      });
+    }
+    return card;
+  }
+
+  // 손민수위키 공유 카드 모양으로 다시 짠다. 배지·가격·버튼은 원래 만든 요소를 그대로 옮겨서
+  // 정품/유사/예시 구분과 버튼 동작이 아이콘 카드와 똑같다.
+  function toWikiCard(card, item, image, parts) {
+    const head = document.createElement('div');
+    head.className = 'wiki-head';
+    const text = document.createElement('div');
+    text.className = 'wiki-text';
+    const src = document.createElement('div');
+    src.className = 'wiki-src';
+    src.textContent = ['손민수위키', item.group, item.member !== '단체' ? item.member : ''].filter(Boolean).join(' · ');
+    const brand = document.createElement('div');
+    brand.className = 'wiki-brand';
+    brand.textContent = item.brand;
+    const name = document.createElement('div');
+    name.className = 'wiki-name';
+    name.textContent = item.name;
+    text.append(src, brand, name);
+    const photo = document.createElement('div');
+    photo.className = 'wiki-photo';
+    image.alt = t('alt.item');
+    photo.append(image);
+    head.append(text, photo);
+    const body = document.createElement('div');
+    body.className = 'wiki-body';
+    parts.meta.textContent = item.situation || '';
+    body.append(parts.badge);
+    if (item.situation) body.append(parts.meta);
+    body.append(parts.price, parts.actions);
+    card.textContent = '';
+    card.classList.remove('has-photo');
+    card.classList.add('wiki-card');
+    card.append(head, body);
+    scrollDown();
+  }
+
+  // "사러 가기": 실제 결제 연동은 범위 밖(PRD §12)이라 상품 url을 새 탭으로 열고, 구석 카운터만 올린다.
+  // 수익 모델(제휴 링크)을 보여주기 위해, 새 탭에 바로 목적지를 넣지 않고 "이동 중" 안내 페이지를
+  // 먼저 열어서(팝업 차단 걱정 없이 이 탭의 위치만 나중에 바꾸는 방식) 1초간 보여준 뒤 이동시킨다.
+  const affiliateToastEl = document.getElementById('affiliate-toast');
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  async function recordPurchaseClick(url) {
+    affiliateToastEl.classList.add('show');
+    let win = null;
+    if (url) {
+      win = window.open('', '_blank');
+      if (win) {
+        win.document.write(
+          '<!doctype html><meta charset="utf-8"><title>' + escapeHtml(t('redirect.title')) + '</title>' +
+          '<body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;' +
+          'font:16px -apple-system,sans-serif;color:#02a5c8;background:#fff;">' +
+          escapeHtml(t('redirect.body')) + '<script>window.opener=null<\/script></body>'
+        );
+      }
+    }
+    await sleep(1000);
+    affiliateToastEl.classList.remove('show');
+    if (win) win.location.href = url; else if (url) window.open(url, '_blank', 'noopener');
+    try {
+      const res = await fetch('/purchase-click', { method: 'POST' });
+      const data = await res.json();
+      showPurchaseCounter(data.purchaseClicks);
+    } catch {
+      // 카운터 갱신이 실패해도 상품 페이지는 이미 열렸으니 조용히 넘어간다.
+    }
+  }
+
+  const purchaseCounterEl = document.getElementById('purchase-counter');
+  function showPurchaseCounter(n) {
+    purchaseCounterEl.textContent = t('counter.purchase', { n });
+    purchaseCounterEl.classList.add('show');
+  }
+
+  function cardsBlock() {
+    const wrap = document.createElement('div');
+    wrap.className = 'cards';
+    log.append(wrap);
+    return wrap;
+  }
+
+  function renderSearchItem(data) {
+    if (!data.results || data.results.length === 0) {
+      turnHadEmptySearch = true;
+      return;
+    }
+    markFound();
+    const wrap = cardsBlock();
+    for (const item of data.results) {
+      const card = itemCard(item);
+      wrap.append(card);
+      if (item.isOriginal) turnOriginalCards.set(item.id, card);
+    }
+    scrollDown();
+  }
+
+  function renderFindAlternative(data) {
+    markFound();
+    const wrap = cardsBlock();
+    // 같은 턴에서 searchItem이 이미 이 원래 제품 카드를 보여줬다면, 새로 만들지 않고
+    // 그 카드를 여기로 옮겨서 대체템 묶음 바로 위에 한 번만 보이게 한다.
+    const existing = turnOriginalCards.get(data.original.id);
+    if (existing && existing.isConnected) {
+      existing.remove();
+      wrap.append(existing);
+    } else {
+      const card = itemCard(data.original);
+      wrap.append(card);
+      turnOriginalCards.set(data.original.id, card);
+    }
+    // 대체템이 없으면 원래 제품 카드만 둔다 — 못 찾았다는 말은 덕메 답변이 한 번만 한다.
+    if (data.alternatives.length > 0) {
+      const label = document.createElement('div');
+      label.className = 'card-group-label';
+      label.textContent = t('group.alternatives');
+      wrap.append(label);
+      for (const alt of data.alternatives) wrap.append(itemCard(alt));
+    }
+    scrollDown();
+  }
+
+  function renderPlanRoute(data) {
+    if (!data.course || data.course.length === 0) {
+      turnHadEmptySearch = true;
+      return;
+    }
+    markFound();
+    const wrap = cardsBlock();
+    const box = document.createElement('div');
+    box.className = 'timeline';
+    const title = document.createElement('h4');
+    // 영어·일본어·중국어 화면에서는 지역명도 영문 표기로 ("서울 route" → "Seoul route").
+    const areaLabel = uiLang !== 'ko' && data.areaEn ? data.areaEn : data.area;
+    title.textContent = t('route.title', { area: areaLabel }) + (data.days > 1 ? ' · ' + t('route.days', { n: data.days }) : '') + (data.date ? ' · ' + data.date : '');
+    box.append(title);
+    if (!data.course || data.course.length === 0) {
+      const p = document.createElement('div');
+      p.className = 'meta';
+      p.textContent = data.reason || t('route.empty');
+      box.append(p);
+    } else {
+      let lastDay = null;
+      for (const stop of data.course) {
+        if (data.days > 1 && stop.day !== lastDay) {
+          lastDay = stop.day;
+          const dayHead = document.createElement('div');
+          dayHead.className = 'meta';
+          dayHead.style.cssText = 'font-weight:700;color:var(--text);margin-top:.4rem;';
+          dayHead.textContent = t('route.day', { n: stop.day });
+          box.append(dayHead);
+        }
+        const row = document.createElement('div');
+        row.className = 'stop';
+        const time = document.createElement('div');
+        time.className = 'time';
+        time.textContent = stop.time;
+        const body = document.createElement('div');
+        body.className = 'body';
+        if (stop.recreeUrl || stop.imageUrl) {
+          addSourcePhoto('place', stop.placeId, (image, previewKind) => {
+            if (!row.isConnected) return;
+            image.className = 'place-photo';
+            image.alt = t(previewKind === 'share_preview' ? 'alt.placePreview' : 'alt.placePhoto', { name: stop.name });
+            row.insertBefore(image, body);
+            row.classList.add('has-photo');
+          });
+        }
+        const name = document.createElement('div');
+        name.className = 'name';
+        const tagKey = stop.isFavoriteMemberVisit ? 'tag.favMember'
+          : stop.isFavoriteGroupVisit ? 'tag.favGroup'
+          : stop.isFandomSpot ? 'tag.fandom'
+          : stop.isBrandMatch ? 'tag.brand' : '';
+        const visitedBy = stop.visitLabel ? visitedByLabel(stop.visitLabel) : '';
+        const tag = visitedBy ? ' · ' + visitedBy : tagKey ? ' · ' + t(tagKey) : '';
+        name.textContent = `${TYPE_ICON[stop.type] || '📍'} ${stop.name}${tag}`;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        // KSPO DOME처럼 여러 그룹이 섞인 곳은 그룹 이름을 한 번씩만("단체, 단체…" 대신).
+        const visitNote = (stop.visitGroups && stop.visitGroups.length > 0) ? stop.visitGroups.join(', ') : '';
+        meta.textContent = `${stop.type} · ${stop.note}` + (visitNote ? ` · ${t('route.visit')}: ${visitNote}` : '');
+        body.append(name, meta);
+        if (stop.mustTry) {
+          const must = document.createElement('div');
+          must.className = 'meta';
+          must.style.color = 'var(--accent-dark)';
+          must.textContent = `${stop.mustTryLabel || t('route.mustTry')}: ${stop.mustTry}`;
+          body.append(must);
+        }
+        const placeActions = document.createElement('div');
+        placeActions.style.cssText = 'display:flex;gap:.5rem;margin-top:.3rem;';
+        if (stop.naverMapUrl) {
+          const mapBtn = document.createElement('button');
+          mapBtn.className = 'buy-btn';
+          mapBtn.textContent = t('btn.naverMap');
+          mapBtn.onclick = () => window.open(stop.naverMapUrl, '_blank', 'noopener');
+          placeActions.append(mapBtn);
+        }
+        if (stop.recreeUrl) {
+          const recreeBtn = document.createElement('button');
+          recreeBtn.className = 'link-btn';
+          recreeBtn.textContent = t('btn.recree');
+          recreeBtn.onclick = () => window.open(stop.recreeUrl, '_blank', 'noopener');
+          placeActions.append(recreeBtn);
+        }
+        if (placeActions.children.length > 0) body.append(placeActions);
+        row.append(time, body);
+        box.append(row);
+      }
+    }
+    wrap.append(box);
+    renderRouteMap(wrap, data.course || []);
+    scrollDown();
+  }
+
+  // Leaflet + OpenStreetMap (API 키 없이). 좌표가 없거나 라이브러리가 안 불러와졌으면 조용히 건너뛴다 —
+  // 지도가 실패해도 위의 코스 목록(box)은 이미 그려져 있으니 그대로 보인다.
+  let routeMapCounter = 0;
+  function renderRouteMap(wrap, course) {
+    const withCoords = course.filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number');
+    if (withCoords.length === 0 || typeof L === 'undefined') return;
+    const mapId = `route-map-${++routeMapCounter}`;
+    const mapDiv = document.createElement('div');
+    mapDiv.className = 'route-map';
+    mapDiv.id = mapId;
+    wrap.append(mapDiv);
+    try {
+      const map = L.map(mapId, { scrollWheelZoom: false });
+      // OSM 기본 타일 (CARTO는 키 없이 쓰면 워터마크가 뜬다). 색은 CSS에서 타일 레이어에만 필터로 눌러 준다.
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      }).addTo(map);
+      const latlngs = withCoords.map((s) => [s.lat, s.lng]);
+      withCoords.forEach((s, i) => {
+        const icon = L.divIcon({ className: 'route-map-pin' + (i === 0 ? ' start' : ''), html: String(i + 1), iconSize: [24, 24] });
+        const visitNote = (s.visitGroups && s.visitGroups.length > 0) ? s.visitGroups.join(', ') : '';
+        const popup = `<strong>${escapeHtml(s.name)}</strong>` +
+          (visitNote ? `<br>${escapeHtml(t('route.visit'))}: ${escapeHtml(visitNote)}` : '') +
+          (s.mustTry ? `<br>${escapeHtml(s.mustTryLabel || t('route.mustTry'))}: ${escapeHtml(s.mustTry)}` : '');
+        L.marker([s.lat, s.lng], { icon }).addTo(map).bindPopup(popup);
+      });
+      if (latlngs.length > 1) {
+        L.polyline(latlngs, { color: '#02a5c8', weight: 2.5, opacity: 0.75, lineCap: 'round', lineJoin: 'round', smoothFactor: 1.5 }).addTo(map);
+      }
+      map.fitBounds(latlngs.length > 1 ? latlngs : [[latlngs[0][0] + 0.001, latlngs[0][1]], latlngs[0]], { padding: [24, 24], maxZoom: 15 });
+    } catch (err) {
+      console.warn('지도를 띄우지 못했어요 (코스 목록은 그대로 보여요):', err);
+      mapDiv.remove();
+    }
+  }
+
+  function renderAddWishlist(data) {
+    const text = data.alreadyInWishlist
+      ? t('wish.already', { name: data.item.name })
+      : t('wish.added', { name: data.item.name });
+    systemNote(text);
+    refreshMemoryPanel();
+  }
+
+  function renderUpdateOwned(data) {
+    const text = t(data.alreadyOwned ? 'owned.already' : 'owned.moved', { name: data.item.name });
+    systemNote(text);
+    refreshMemoryPanel();
+  }
+
+  function renderMarkVisited(data) {
+    const names = (data.marked || []).map((p) => p.name);
+    const text = names.length > 0 ? t('visited.marked', { names: names.join(', ') }) : t('visited.allAlready');
+    systemNote(text);
+    refreshMemoryPanel();
+  }
+
+  // findPlaces는 지역별 개수를 모델이 답변 문장에서 그대로 말해주니(카드 UI가 따로 없음),
+  // 여기서 또 systemNote로 같은 내용을 띄우면 "두 번 나오는" 것처럼 보여서 화면에는 아무것도 안 띄운다.
+  function renderFindPlaces(data) {
+    // 카드는 없지만, 결과가 있었는지는 턴 끝 "확인되지 않은 정보" 안내 판단에 쓴다.
+    if (data && data.regions && data.regions.length > 0) markFound();
+    else turnHadEmptySearch = true;
+  }
+
+  // Qloo 취향 그래프 결과(tasteMatch). 우리 데이터(검수된 사실)와 섞이지 않게 별도 라벨·배지로 보여 준다.
+  function renderTasteMatch(data) {
+    if (!data || !Array.isArray(data.results) || data.results.length === 0) return;
+    markFound();
+    const wrap = cardsBlock();
+    const label = document.createElement('div');
+    label.className = 'card-group-label qloo-label';
+    label.textContent = data.kind === 'brands' ? t('qloo.brands', { seed: data.seedBrand })
+      : data.kind === 'places' ? t('qloo.places', { area: data.area })
+      : t('qloo.artists', { seed: data.seedArtist });
+    wrap.append(label);
+    const icon = data.kind === 'brands' ? '🏷️' : data.kind === 'places' ? '📍' : '🎧';
+    for (const r of data.results) {
+      const card = document.createElement('div');
+      card.className = 'item-card qloo-card';
+      const thumb = document.createElement('div');
+      thumb.className = 'item-thumb';
+      thumb.textContent = icon;
+      const info = document.createElement('div');
+      info.className = 'item-info';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = r.name;
+      const badge = document.createElement('span');
+      badge.className = 'badge qloo';
+      badge.textContent = t('qloo.badge');
+      title.append(badge);
+      info.append(title);
+      const metaText = [r.address, (r.tags || []).slice(0, 3).join(' · ')].filter(Boolean).join(' — ');
+      if (metaText) {
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        meta.textContent = metaText;
+        info.append(meta);
+      }
+      if (typeof r.affinity === 'number') {
+        const bar = document.createElement('div');
+        bar.className = 'qloo-meter';
+        bar.title = t('qloo.match');
+        const fill = document.createElement('span');
+        fill.style.width = Math.round(Math.max(0, Math.min(1, r.affinity)) * 100) + '%';
+        bar.append(fill);
+        info.append(bar);
+      }
+      card.append(thumb, info);
+      const actions = document.createElement('div');
+      actions.className = 'item-actions';
+      const look = document.createElement('button');
+      look.className = 'wish-btn';
+      look.textContent = t('qloo.search');
+      const href = r.website && /^https?:\/\//.test(r.website) ? r.website
+        : data.kind === 'places' ? 'https://www.google.com/maps/search/' + encodeURIComponent(r.name + ' ' + (r.address || data.area || 'Seoul'))
+        : 'https://www.google.com/search?q=' + encodeURIComponent(r.name);
+      look.onclick = () => window.open(href, '_blank', 'noopener');
+      actions.append(look);
+      card.append(actions);
+      wrap.append(card);
+    }
+    if (data.kind === 'brands') {
+      const note = document.createElement('div');
+      note.className = 'card-group-label';
+      note.textContent = t('qloo.note');
+      wrap.append(note);
+    }
+    scrollDown();
+  }
+
+  const handlers = {
+    tasteMatch: renderTasteMatch,
+    searchItem: renderSearchItem,
+    findAlternative: renderFindAlternative,
+    addWishlist: renderAddWishlist,
+    planRoute: renderPlanRoute,
+    updateOwned: renderUpdateOwned,
+    markVisited: renderMarkVisited,
+    findPlaces: renderFindPlaces,
+  };
+
+  // 네트워크가 끊기면 브라우저가 EventSource를 알아서 계속 재연결하려고 한다 — 그때마다
+  // 메시지를 띄우면 스팸이 되니, "끊김" 안내는 한 번만 띄우고 다시 연결되면(onopen) 조용히 지운다.
+  let connectionLostNoted = false;
+  function noteConnectionLost() {
+    if (connectionLostNoted) return;
+    connectionLostNoted = true;
+    systemNote(t('conn.lost'));
+  }
+  const es = new EventSource('/events');
+  es.onopen = () => { connectionLostNoted = false; };
+  es.onerror = noteConnectionLost;
+  es.onmessage = ({ data }) => {
+    const { source, event } = JSON.parse(data);
+    // 화면 언어는 서버가 판별한 대화 언어를 그대로 따른다 (짧은 대답은 직전 언어 유지 — 덕메 답변과 같은 규칙).
+    if (source === 'lang') {
+      setUiLang(event.lang);
+      return;
+    }
+    if (source === 'card') {
+      const fn = handlers[event.tool];
+      if (fn) fn(event.data);
+      return;
+    }
+    // source === 'agent'
+    if (event.type === 'input' && event.kind === 'user') {
+      removeWelcome();
+      markActivity();
+      ensureTurn(event.id);
+      setBubbleText(event.id, 'you', event.text);
+      scrollDown();
+    }
+    if (event.type === 'message.delta') {
+      const raw = (rawText.get(event.id) || '') + event.text;
+      rawText.set(event.id, raw);
+      setBubbleText(event.id, 'agent', raw, true);
+      scrollDown();
+    }
+    if (event.type === 'message.end') {
+      rawText.set(event.id, event.text);
+      setBubbleText(event.id, 'agent', event.text, false); // 최종 텍스트 기준으로 다시 정리 (비면 말풍선 없음)
+      // SDK가 알아본 마커 + SDK가 못 알아본 느슨한 마커(": happy:" 등)를 합쳐 표정을 정한다.
+      const extracted = window.DukmeMarkers.extractMarkers(event.text);
+      turnAgentText += extracted.text;
+      const resolved = window.DukmeMarkers.resolveExpression([...(event.markers || []), ...extracted.markers]);
+      setExpression(resolved);
+      // 말풍선 옆 작은 얼굴은 그 메시지가 끝난 순간의 표정을 그대로, 지연 없이 바로 보여준다
+      // (상단 큰 아바타는 최소 노출 시간을 지키려고 늦게 바뀔 수 있지만, 이건 그 메시지 자체의 기록이라 바로 반영).
+      const mini = miniAvatars.get(event.id);
+      if (mini) { mini.innerHTML = dukmeAvatarSvg(resolved); bounce(mini); }
+      refreshMemoryPanel();
+      // Croche의 기억 저장은 답변이 끝난 뒤 따로 완료될 때가 있어서(테스트 결과 7초 대기 85% ->
+      // 15초 대기 95%), 한 번 더 늦게 조회해서 뒤늦게 저장된 기억도 패널에 반영한다.
+      setTimeout(refreshMemoryPanel, 4000);
+      scrollDown();
+    }
+    // 도구가 실제로 실행되는 동안 (state.activity === 'tool') 바로 :think: 표정으로 바꾼다 —
+    // 메시지가 끝나야 마커가 오는 message.end보다 먼저, "찾는 중"이 실시간으로 보이게.
+    if (event.type === 'state' && event.activity === 'tool') {
+      setExpression('think');
+      if (!event.tools || event.tools.some((t) => SEARCH_TOOLS.includes(t))) showSearchingNote();
+    }
+    if (event.type === 'state') {
+      agentRunning = event.status === 'running';
+      // 답변을 읽는 시간도 활동으로 본다(부스 자동 초기화가 답이 끝나자마자 오지 않게).
+      if (event.status === 'idle') markActivity();
+    }
+    if (event.type === 'state' && event.status === 'idle') finishTurnSearch();
+  };
+
+  async function sendText(text) {
+    // 네트워크 오류면 조용히 다시 시도하지 않고, 한 번 안내만 하고 사용자가 다시 말하게 한다.
+    removeWelcome();
+    markActivity();
+    try {
+      const res = await fetch('/send', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+      if (!res.ok) {
+        // 과금 보호 상한·자리 부족은 연결 오류가 아니라 안내 문구로.
+        let code = '';
+        try { code = (await res.json()).error || ''; } catch { /* 본문 없음 */ }
+        const key = LIMIT_NOTICE[code];
+        if (key) { systemNote(t(key)); return; }
+        throw new Error(`HTTP ${res.status}`);
+      }
+    } catch (err) {
+      console.warn('메시지 전송 실패:', err);
+      systemNote(t('conn.lost'));
+    }
+  }
+
+  document.getElementById('composer').onsubmit = async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('text');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    hasSentMessage = true;
+    input.placeholder = t('placeholder.short'); // 한 번 말한 뒤엔 예시 문구 없이 짧게
+    await sendText(text);
+  };
+
+  function resetExpression() {
+    if (expressionTimer) { clearTimeout(expressionTimer); expressionTimer = null; }
+    expressionBusyUntil = 0;
+    applyExpression('idle');
+  }
+
+  // 기억 패널 서랍: 버튼으로 열고, 닫기 버튼이나 바깥(backdrop) 클릭으로 닫는다.
+  const memoryDrawer = document.getElementById('memory-col');
+  const drawerBackdrop = document.getElementById('drawer-backdrop');
+  function openDrawer() { memoryDrawer.classList.add('open'); drawerBackdrop.classList.add('show'); }
+  function closeDrawer() { memoryDrawer.classList.remove('open'); drawerBackdrop.classList.remove('show'); }
+  document.getElementById('btn-memory-toggle').onclick = openDrawer;
+  document.getElementById('btn-drawer-close').onclick = closeDrawer;
+  drawerBackdrop.onclick = closeDrawer;
+
+  document.getElementById('btn-new-chat').onclick = async () => {
+    await fetch('/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: 'conversation' }) });
+    log.innerHTML = '';
+    bubbles.clear();
+    miniAvatars.clear();
+    currentTurnInputId = null;
+    turnOriginalCards = new Map();
+    resetTurnSearch();
+    rawText.clear();
+    resetExpression();
+    renderWelcome();
+    systemNote(t('chat.new'));
+    await refreshMemoryPanel();
+  };
+
+  // "처음부터"(헤더)와 "기억 초기화"(패널)는 같다: 대화 + AI 기억 + 찜/보유/방문 + 대화 언어 + 메시지 수까지 비우고 첫 화면으로.
+  // 부스 모드의 자동 초기화도 이걸 쓴다(묻지 않고, 안내 문구 없이 첫 화면만).
+  async function resetAll({ ask = true, auto = false } = {}) {
+    if (ask && !confirm(t('confirm.reset'))) return;
+    try {
+      const res = await fetch('/reset', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ scope: 'all' }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.warn('초기화 실패:', err);
+      if (!auto) systemNote(t('conn.lost'));
+      return;
+    }
+    log.innerHTML = '';
+    bubbles.clear();
+    miniAvatars.clear();
+    currentTurnInputId = null;
+    turnOriginalCards = new Map();
+    resetTurnSearch();
+    rawText.clear();
+    resetExpression();
+    purchaseCounterEl.classList.remove('show');
+    closeDrawer();
+    hasSentMessage = false;
+    // 다음 관람객을 위한 처음 상태: 서버도 대화 언어를 비웠으니 화면도 기본(한국어)으로 돌리고 안내도 한국어로.
+    setUiLang('ko');
+    document.getElementById('text').value = '';
+    document.getElementById('text').placeholder = t('placeholder.initial');
+    renderWelcome();
+    if (!auto) systemNote(t('chat.resetDone'));
+    markActivity();
+    refreshMemoryPanel();
+  }
+  document.getElementById('btn-reset-memory').onclick = () => resetAll({ ask: true });
+  // 부스 모드에서는 묻지 않고 바로(관람객이 바뀔 때 쓰는 버튼이라).
+  document.getElementById('btn-restart').onclick = () => resetAll({ ask: !boothIdleMs });
+
+  // 첫 화면 예시 질문 (언어별로 하나씩 보여 주려고 문구는 번역하지 않는다).
+  const EXAMPLE_QUESTIONS = [
+    "Show me what Karina from aespa wore",
+    "Wonbin's knit vest is over my budget ($50). Find me something with the same vibe",
+    "Plan a RIIZE pilgrimage in Seongsu and add places that fit my taste",
+    "I love NCT WISH. Which artists should I check out?",
+    "Plan me a BTS fan-spot course in Seoul",
+    '사쿠야 손민수템 보여줘',
+  ];
+  function renderWelcome() {
+    removeWelcome();
+    const box = document.createElement('div');
+    box.className = 'welcome';
+    const title = document.createElement('div');
+    title.className = 'welcome-title';
+    title.textContent = t('welcome.title');
+    box.append(title);
+    for (const q of EXAMPLE_QUESTIONS) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'example-btn';
+      btn.textContent = q;
+      btn.onclick = () => {
+        hasSentMessage = true;
+        document.getElementById('text').placeholder = t('placeholder.short');
+        sendText(q);
+      };
+      box.append(btn);
+    }
+    log.prepend(box);
+  }
+  function removeWelcome() {
+    for (const el of log.querySelectorAll('.welcome')) el.remove();
+  }
+
+  const LIMIT_NOTICE = { user_limit: 'limit.user', global_limit: 'limit.global', busy: 'limit.busy', new_user_limit: 'limit.newUser' };
+
+  // 부스 모드: BOOTH_IDLE_RESET(초) 동안 입력이 없으면 자동으로 "처음부터". 서버 /config로 켜고 끈다.
+  let boothIdleMs = 0;
+  let lastActivity = Date.now();
+  let agentRunning = false;
+  function markActivity() { lastActivity = Date.now(); }
+  for (const type of ['pointerdown', 'keydown', 'touchstart', 'wheel']) window.addEventListener(type, markActivity, { passive: true });
+  const hasConversation = () => bubbles.size > 0 || log.querySelector('.cards, .row.system') !== null;
+  setInterval(() => {
+    if (!boothIdleMs || agentRunning) return;
+    if (Date.now() - lastActivity < boothIdleMs) return;
+    if (!hasConversation()) { markActivity(); return; }
+    resetAll({ ask: false, auto: true });
+  }, 5000);
+  fetch('/config').then((r) => r.json()).then((config) => {
+    boothIdleMs = Math.max(0, Number(config.boothIdleResetSeconds) || 0) * 1000;
+    document.body.classList.toggle('booth', boothIdleMs > 0);
+  }).catch(() => { /* 설정을 못 받으면 부스 모드 꺼진 채로 */ });
+
+  // 기억 패널의 한 줄: 텍스트 + "삭제" 버튼. 사용자가 직접 지울 수 있게 한다 (PRD §7).
+  function memRow(text, onDelete) {
+    const li = document.createElement('li');
+    li.className = 'mem-row';
+    const span = document.createElement('span');
+    span.className = 'mem-text';
+    span.textContent = text;
+    const del = document.createElement('button');
+    del.className = 'mem-del';
+    del.title = t('btn.delete');
+    del.textContent = '✕';
+    del.onclick = async () => { await onDelete(); await refreshMemoryPanel(); };
+    li.append(span, del);
+    return li;
+  }
+
+  async function deleteMemory(id) {
+    await fetch('/memory/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ id }) });
+  }
+  async function removeFromList(list, id) {
+    await fetch('/list/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ list, id }) });
+  }
+
+  // 찜·보유·방문 Tool 직후와 답변 직후에 여러 번 겹쳐 불리므로, 가장 마지막 요청의 응답만 그린다.
+  let memoryPanelSeq = 0;
+  async function refreshMemoryPanel() {
+    const seq = ++memoryPanelSeq;
+    const res = await fetch('/state');
+    if (!res.ok) return;
+    const data = await res.json();
+    if (seq !== memoryPanelSeq) return;
+    // 새로고침해도 직전 대화 언어로 화면을 연다.
+    if (data.replyLanguage && data.replyLanguage !== uiLang) { setUiLang(data.replyLanguage); return; }
+    if (data.purchaseClicks > 0) showPurchaseCounter(data.purchaseClicks);
+    const memoryList = document.getElementById('memory-list');
+    memoryList.innerHTML = '';
+    if (data.preferences && Object.keys(data.preferences).length) {
+      const profile = document.createElement('div');
+      profile.className = 'section';
+      const p = data.preferences;
+      const favorites = (p.favorites || []).filter((f) => f && (f.group || f.member));
+      if (favorites.length) {
+        const line = document.createElement('div');
+        line.className = 'fav-line';
+        line.append(t('profile.favorites') + ': ');
+        favorites.forEach((f, i) => {
+          if (i > 0) line.append(' · ');
+          const chip = document.createElement('span');
+          chip.className = 'fav-chip';
+          // 같은 그룹 멤버가 이어지면 그룹명은 처음 한 번만 ("BOYNEXTDOOR 태산 · 이한").
+          const sameGroupAsPrev = i > 0 && f.group && favorites[i - 1].group === f.group && f.member;
+          chip.append([sameGroupAsPrev ? '' : f.group, f.member].filter(Boolean).join(' '));
+          const del = document.createElement('button');
+          del.className = 'mem-del';
+          del.title = t('btn.delete');
+          del.setAttribute('aria-label', `${t('btn.delete')}: ${[f.group, f.member].filter(Boolean).join(' ')}`);
+          del.textContent = '✕';
+          del.onclick = async () => {
+            await fetch('/favorite/remove', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ group: f.group, member: f.member }) });
+            await refreshMemoryPanel();
+          };
+          chip.append(del);
+          line.append(chip);
+        });
+        memoryList.append(line);
+      }
+      const tags = [
+        typeof p.budget === 'number' && t('profile.budget', { v: won(p.budget) }), (p.colors || []).length && t('profile.colors', { v: p.colors.join(', ') }),
+        p.sizeTop && t('profile.top', { v: p.sizeTop }), p.sizeBottom && t('profile.bottom', { v: p.sizeBottom }), p.sizeShoes && t('profile.shoes', { v: p.sizeShoes }),
+        p.shoppingMode && t('profile.mode', { v: t(p.shoppingMode === 'travel' ? 'mode.travel' : p.shoppingMode === 'shopping' ? 'mode.shopping' : 'mode.both') }),
+        p.language && t('profile.language', { v: p.language })].filter(Boolean);
+      if (tags.length) {
+        profile.textContent = t('profile.title') + tags.join(' · ');
+        memoryList.append(profile);
+      }
+    }
+    if (!data.memory || data.memory.length === 0) {
+      // Croche 자연어 기억이 비어 있어도 앱의 구조화된 최애·예산은 지우지 않는다.
+      if (!data.preferences || Object.keys(data.preferences).length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = t('panel.memEmpty');
+        memoryList.append(empty);
+      }
+    } else {
+      const ul = document.createElement('ul');
+      for (const m of data.memory) ul.append(memRow(m.text, () => deleteMemory(m.id)));
+      memoryList.append(ul);
+    }
+
+    // 한 줄을 그리다 예외가 나도(가격 없는 아이템 등) 그 목록·다음 목록이 통째로 비지 않게, 줄 단위로 막는다.
+    const fillList = (elId, listName, arr, render) => {
+      const el = document.getElementById(elId);
+      el.innerHTML = '';
+      if (!arr || arr.length === 0) {
+        el.innerHTML = '';
+        const empty = document.createElement('div');
+        empty.className = 'empty';
+        empty.textContent = t('panel.listEmpty');
+        el.append(empty);
+        return;
+      }
+      const ul = document.createElement('ul');
+      for (const x of arr) {
+        let label;
+        try { label = render(x); } catch (err) { console.warn('기억 패널 항목 표시 실패:', x, err); label = x.name || x.id; }
+        ul.append(memRow(label, () => removeFromList(listName, x.id)));
+      }
+      el.append(ul);
+    };
+    fillList('wishlist-list', 'wishlist', data.wishlist, (i) => `${i.brand} ${i.name} (${priceLabel(i)})`);
+    fillList('owned-list', 'owned', data.owned, (i) => `${i.brand} ${i.name}`);
+    fillList('visited-list', 'visitedPlaces', data.visitedPlaces, (p) => p.name);
+  }
+
+  applyExpression('idle'); // 페이지 열리면 바로 SVG 마스코트로 (정적 HTML의 이모지 대체)
+  renderWelcome();
+  refreshMemoryPanel();
+</script>
+</html>
