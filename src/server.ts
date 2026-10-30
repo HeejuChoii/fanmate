@@ -13,6 +13,7 @@ import { Identity } from "./identity.js";
 import { HourlyLimit } from "./limits.js";
 import { crocheStorageDir } from "./paths.js";
 import { onCard } from "./bus.js";
+import { clearStaleCrocheLocks } from "./staleLocks.js";
 import { resetState, readState, updateState } from "./state.js";
 import { loadAliases, loadItems, loadPlaces, type Item } from "./data.js";
 import { diagnoseItemPreview, getMediaPreview } from "./mediaPreview.js";
@@ -380,8 +381,15 @@ const server = createServer(async (req, res) => {
   }
 });
 
+// 이전 컨테이너가 남긴 Croche 소유 기록을 지운 뒤에 요청을 받는다(재배포 후 store_busy 방지).
+const staleLocks = await clearStaleCrocheLocks().catch((error) => {
+  console.error("stale lock cleanup failed:", error);
+  return 0;
+});
+if (staleLocks) console.log(`이전 프로세스의 Croche 잠금 기록 ${staleLocks}개 정리`);
+
 server.listen(PORT, HOST, () => {
-  console.log(`덕메 서버: http://localhost:${PORT} (${keys.serverKey ? "서버 키" : "디버그 키(로컬 개발)"})`);
+  console.log(`FanMate 서버: http://localhost:${PORT} (${keys.serverKey ? "서버 키" : "디버그 키(로컬 개발)"})`);
   for (const ip of lanAddresses()) console.log(`  같은 와이파이: http://${ip}:${PORT}`);
   if (BOOTH_IDLE_RESET) console.log(`  부스 모드: ${BOOTH_IDLE_RESET}초 동안 입력이 없으면 자동으로 처음부터`);
 });
