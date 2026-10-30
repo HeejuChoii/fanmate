@@ -34,13 +34,30 @@ const cards: unknown[] = [];
 onCard((c) => cards.push(c));
 const ctx = { user: "u1", causedBy: ["t1"] } as never;
 
-const item = (await loadItems())[0];
+const item = (await loadItems()).find((i) => /^[A-Za-z ]+$/.test(i.brand))!;
 const brands = (await tasteMatchHandler({ key: "similar_brands", args: { itemId: item.id, alsoLikes: "Carhartt" } } as never, ctx)) as any;
 assert.equal(brands.kind, "brands");
 assert.equal(brands.results.length, 2);
 const insights = calls.find((u) => u.pathname === "/v2/insights")!;
 assert.equal(insights.searchParams.get("filter.type"), "urn:entity:brand");
 assert.ok(insights.searchParams.get("signal.interests.entities")!.split(",").length >= 2, "brand + alsoLikes seeds");
+
+// Qloo가 모르는 브랜드(검색 결과 이름이 다름)는 엉뚱한 브랜드로 추천하지 않는다.
+const realFetch = globalThis.fetch;
+globalThis.fetch = (async (input: string | URL, init?: RequestInit) => {
+  const url = new URL(String(input));
+  if (url.pathname === "/search" && url.searchParams.get("query") === "NO MANUAL") {
+    return new Response(JSON.stringify({ results: [{ name: "Proper No. Twelve", entity_id: "WRONG" }] }), { status: 200 });
+  }
+  return realFetch(input, init);
+}) as typeof fetch;
+const unknown = (await tasteMatchHandler({ key: "similar_brands", args: { brand: "NO MANUAL" } } as never, ctx)) as any;
+assert.equal(unknown.resolved, false);
+assert.equal(unknown.results.length, 0);
+const retried = (await tasteMatchHandler({ key: "similar_brands", args: { brand: "NO MANUAL", seedBrands: "Stussy" } } as never, ctx)) as any;
+assert.equal(retried.results.length, 2);
+assert.deepEqual(retried.seededBy, ["Stussy"]);
+globalThis.fetch = realFetch;
 
 calls.length = 0;
 const places = (await tasteMatchHandler({ key: "places_nearby", args: { area: "Seongsu, Seoul", vibe: "cafe" } } as never, ctx)) as any;
@@ -51,7 +68,7 @@ assert.equal(placeCall.searchParams.get("signal.interests.tags"), "urn:tag:categ
 
 const artists = (await tasteMatchHandler({ key: "artists", args: { group: "aespa" } } as never, ctx)) as any;
 assert.equal(artists.kind, "artists");
-assert.equal(cards.length, 3, "one card per call");
+assert.equal(cards.length, 5, "one card per call (empty results emit no card in UI)");
 
 delete process.env.QLOO_API_KEY;
 const off = (await tasteMatchHandler({ key: "artists", args: { group: "aespa" } } as never, ctx)) as any;
