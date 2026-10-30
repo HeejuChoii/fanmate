@@ -195,6 +195,7 @@
   .qloo-card { border-left: 3px solid #6b4cff; }
   .qloo-meter { height: 4px; border-radius: 4px; background: rgba(107,76,255,.15); margin-top: .35rem; overflow: hidden; max-width: 160px; }
   .qloo-meter span { display: block; height: 100%; background: #6b4cff; }
+  .welcome-coverage { font-size: .78rem; color: var(--muted); margin: -.1rem 0 .4rem; line-height: 1.4; }
   .powered { font-size: .68rem; color: var(--muted); letter-spacing: .01em; }
   .item-actions { display: flex; flex-direction: column; gap: .35rem; flex-shrink: 0; }
   .wish-btn, .buy-btn {
@@ -289,16 +290,16 @@
       <div id="avatar-status"></div>
     </div>
     <div class="spacer"></div>
-    <button id="btn-memory-toggle" class="btn btn-ghost" type="button" data-i18n="btn.memory">덕질 기록</button>
-    <button id="btn-restart" class="btn" type="button" data-i18n="btn.restart">처음부터</button>
+    <button id="btn-memory-toggle" class="btn btn-ghost" type="button" data-i18n="btn.memory">My Fan Log</button>
+    <button id="btn-restart" class="btn" type="button" data-i18n="btn.restart">Start over</button>
   </header>
 
   <main>
     <section id="chat-col">
       <div id="log"></div>
       <form id="composer" autocomplete="off">
-        <input id="text" placeholder="덕메에게 말해보세요 (예: 내 최애는 위시 시온이야)">
-        <button type="submit" data-i18n="btn.send">보내기</button>
+        <input id="text" placeholder="Talk to FanMate (e.g. My bias is Karina from aespa)">
+        <button type="submit" data-i18n="btn.send">Send</button>
       </form>
     </section>
   </main>
@@ -306,32 +307,32 @@
   <div id="drawer-backdrop"></div>
   <aside id="memory-col">
     <div class="drawer-head">
-      <h3 data-i18n="panel.title">내 덕질 기록</h3>
-      <button id="btn-drawer-close" class="drawer-close" type="button" aria-label="닫기" data-i18n-aria="btn.close">✕</button>
+      <h3 data-i18n="panel.title">My Fan Log</h3>
+      <button id="btn-drawer-close" class="drawer-close" type="button" aria-label="Close" data-i18n-aria="btn.close">✕</button>
     </div>
     <div class="section">
       <div id="memory-list"></div>
     </div>
     <div class="section">
-      <strong style="font-size:.8rem;" data-i18n="panel.wishlist">찜한 아이템</strong>
+      <strong style="font-size:.8rem;" data-i18n="panel.wishlist">Wishlist</strong>
       <div id="wishlist-list"></div>
     </div>
     <div class="section">
-      <strong style="font-size:.8rem;" data-i18n="panel.owned">보유 아이템</strong>
+      <strong style="font-size:.8rem;" data-i18n="panel.owned">Owned</strong>
       <div id="owned-list"></div>
     </div>
     <div class="section">
-      <strong style="font-size:.8rem;" data-i18n="panel.visited">다녀온 성지</strong>
+      <strong style="font-size:.8rem;" data-i18n="panel.visited">Visited spots</strong>
       <div id="visited-list"></div>
     </div>
     <div class="drawer-actions">
-      <button id="btn-new-chat" class="btn btn-ghost" type="button" data-i18n="btn.newChat">새 대화</button>
-      <button id="btn-reset-memory" class="btn btn-ghost" type="button" data-i18n="btn.resetMemory">기억 초기화</button>
+      <button id="btn-new-chat" class="btn btn-ghost" type="button" data-i18n="btn.newChat">New chat</button>
+      <button id="btn-reset-memory" class="btn btn-ghost" type="button" data-i18n="btn.resetMemory">Reset memory</button>
     </div>
   </aside>
 
-  <div id="purchase-counter">구매 연결 0건</div>
-  <div id="affiliate-toast" data-i18n="toast.affiliate">손민수위키 제휴 링크로 이동해요</div>
+  <div id="purchase-counter"></div>
+  <div id="affiliate-toast" data-i18n="toast.affiliate">Opening the shop link…</div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -360,7 +361,7 @@
       'alt.placePreview': '{name} 상세 페이지 미리보기', 'alt.placePhoto': '{name} 장소 사진',
       'redirect.title': '이동 중…', 'redirect.body': '외부 판매처로 이동 중…',
       'counter.purchase': '구매 연결 {n}건', 'toast.affiliate': '손민수위키 제휴 링크로 이동해요',
-      'qloo.brands': 'Qloo · {seed}와 취향이 비슷한 브랜드', 'qloo.places': 'Qloo · {area}에서 네 취향에 맞는 곳', 'qloo.artists': 'Qloo · {seed}를 좋아하면 이 아티스트도', 'qloo.badge': 'Qloo 취향 매치', 'qloo.match': '취향 일치도', 'qloo.note': '브랜드 단위 추천이에요. 가격은 각 브랜드에서 확인해 주세요.', 'qloo.search': '찾아보기',
+      'src.wiki': '손민수위키', 'welcome.coverage': '데모 데이터: BTS · IVE · aespa · RIIZE · NCT WISH (서울·부산 성지). Qloo 추천은 어떤 브랜드·지역·아티스트든 돼요.', 'qloo.brands': 'Qloo · {seed}와 취향이 비슷한 브랜드', 'qloo.places': 'Qloo · {area}에서 네 취향에 맞는 곳', 'qloo.artists': 'Qloo · {seed}를 좋아하면 이 아티스트도', 'qloo.badge': 'Qloo 취향 매치', 'qloo.match': '취향 일치도', 'qloo.note': '브랜드 단위 추천이에요. 가격은 각 브랜드에서 확인해 주세요.', 'qloo.search': '찾아보기',
       'group.alternatives': '대체템',
       'route.title': '{area} 코스', 'route.days': '{n}일', 'route.day': '{n}일차', 'route.empty': '짤 수 있는 코스가 없어요.',
       'tag.visitedBy': '{name}{josa} 다녀간 곳', 'tag.visitedByLatin': '{name} 방문', 'tag.favMember': '최애가 다녀간 곳', 'tag.favGroup': '같은 그룹이 다녀간 곳', 'tag.fandom': '팬덤 성지', 'tag.brand': '착용 브랜드 매장',
@@ -395,7 +396,7 @@
       'alt.placePreview': '{name} page preview', 'alt.placePhoto': 'Photo of {name}',
       'redirect.title': 'Redirecting…', 'redirect.body': 'Taking you to the seller…',
       'counter.purchase': 'Purchase links: {n}', 'toast.affiliate': 'Opening a Sonminsoo Wiki partner link',
-      'qloo.brands': 'Qloo · brands with a taste profile like {seed}', 'qloo.places': 'Qloo · places in {area} that fit your taste', 'qloo.artists': 'Qloo · if you love {seed}, try', 'qloo.badge': 'Qloo taste match', 'qloo.match': 'Taste match', 'qloo.note': 'Brand-level picks. Check prices at each brand.', 'qloo.search': 'Look it up',
+      'src.wiki': 'Son Min-soo Wiki', 'welcome.coverage': 'Demo data covers BTS · IVE · aespa · RIIZE · NCT WISH (spots in Seoul & Busan). Qloo taste picks work for any brand, area or artist.', 'qloo.brands': 'Qloo · brands with a taste profile like {seed}', 'qloo.places': 'Qloo · places in {area} that fit your taste', 'qloo.artists': 'Qloo · if you love {seed}, try', 'qloo.badge': 'Qloo taste match', 'qloo.match': 'Taste match', 'qloo.note': 'Brand-level picks. Check prices at each brand.', 'qloo.search': 'Look it up',
       'group.alternatives': 'Alternatives',
       'route.title': '{area} route', 'route.days': '{n} days', 'route.day': 'Day {n}', 'route.empty': "Couldn't build a route.",
       'tag.visitedBy': 'Visited by {name}', 'tag.favMember': 'Your bias visited', 'tag.favGroup': 'Same group visited', 'tag.fandom': 'Fan spot', 'tag.brand': 'Store of a worn brand',
@@ -430,7 +431,7 @@
       'alt.placePreview': '{name} 詳細ページのプレビュー', 'alt.placePhoto': '{name} の写真',
       'redirect.title': '移動中…', 'redirect.body': '外部の販売ページへ移動中…',
       'counter.purchase': '購入リンク {n}件', 'toast.affiliate': 'ソンミンスWikiの提携リンクへ移動します',
-      'qloo.brands': 'Qloo · {seed}と好みが近いブランド', 'qloo.places': 'Qloo · {area}であなた好みの場所', 'qloo.artists': 'Qloo · {seed}が好きならこちらも', 'qloo.badge': 'Qloo テイストマッチ', 'qloo.match': '好み一致度', 'qloo.note': 'ブランド単位のおすすめです。価格は各ブランドでご確認ください。', 'qloo.search': '調べる',
+      'src.wiki': 'ソンミンスWiki', 'welcome.coverage': 'デモデータ: BTS · IVE · aespa · RIIZE · NCT WISH(ソウル・釜山の聖地)。Qlooのおすすめはどのブランド・地域・アーティストでも使えます。', 'qloo.brands': 'Qloo · {seed}と好みが近いブランド', 'qloo.places': 'Qloo · {area}であなた好みの場所', 'qloo.artists': 'Qloo · {seed}が好きならこちらも', 'qloo.badge': 'Qloo テイストマッチ', 'qloo.match': '好み一致度', 'qloo.note': 'ブランド単位のおすすめです。価格は各ブランドでご確認ください。', 'qloo.search': '調べる',
       'group.alternatives': '代わりアイテム',
       'route.title': '{area} コース', 'route.days': '{n}日間', 'route.day': '{n}日目', 'route.empty': 'コースを作れませんでした。',
       'tag.visitedBy': '{name}が訪れた場所', 'tag.favMember': '推しが行った場所', 'tag.favGroup': '同じグループが行った場所', 'tag.fandom': 'ファンの聖地', 'tag.brand': '着用ブランドの店舗',
@@ -465,7 +466,7 @@
       'alt.placePreview': '{name} 详情页预览', 'alt.placePhoto': '{name} 地点照片',
       'redirect.title': '跳转中…', 'redirect.body': '正在跳转到外部卖家…',
       'counter.purchase': '购买链接 {n}次', 'toast.affiliate': '正在打开孙敏秀Wiki合作链接',
-      'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
+      'src.wiki': 'Son Min-soo Wiki', 'welcome.coverage': '演示数据: BTS · IVE · aespa · RIIZE · NCT WISH(首尔·釜山圣地)。Qloo 推荐适用于任何品牌、地区或艺人。', 'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
       'group.alternatives': '平替',
       'route.title': '{area} 路线', 'route.days': '{n}天', 'route.day': '第{n}天', 'route.empty': '没能排出路线。',
       'tag.visitedBy': '{name}去过的地方', 'tag.favMember': '本命去过的地方', 'tag.favGroup': '同团成员去过的地方', 'tag.fandom': '粉丝圣地', 'tag.brand': '同款品牌门店',
@@ -500,7 +501,7 @@
       'alt.placePreview': '{name} 詳情頁預覽', 'alt.placePhoto': '{name} 地點照片',
       'redirect.title': '跳轉中…', 'redirect.body': '正在前往外部賣家…',
       'counter.purchase': '購買連結 {n}次', 'toast.affiliate': '正在開啟孫敏秀Wiki合作連結',
-      'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
+      'src.wiki': 'Son Min-soo Wiki', 'welcome.coverage': '演示数据: BTS · IVE · aespa · RIIZE · NCT WISH(首尔·釜山圣地)。Qloo 推荐适用于任何品牌、地区或艺人。', 'qloo.brands': 'Qloo · 与{seed}品味相近的品牌', 'qloo.places': 'Qloo · {area}符合你品味的地方', 'qloo.artists': 'Qloo · 喜欢{seed}的话也试试', 'qloo.badge': 'Qloo 品味匹配', 'qloo.match': '品味匹配度', 'qloo.note': '品牌层面的推荐，价格请到各品牌确认。', 'qloo.search': '搜索',
       'group.alternatives': '平替',
       'route.title': '{area} 路線', 'route.days': '{n}天', 'route.day': '第{n}天', 'route.empty': '沒能排出路線。',
       'tag.visitedBy': '{name}去過的地方', 'tag.favMember': '本命去過的地方', 'tag.favGroup': '同團成員去過的地方', 'tag.fandom': '粉絲聖地', 'tag.brand': '同款品牌門市',
@@ -559,6 +560,7 @@
     uiLang = lang;
     applyStaticI18n();
     for (const el of document.querySelectorAll('.welcome-title')) el.textContent = t('welcome.title');
+    for (const el of document.querySelectorAll('.welcome-coverage')) el.textContent = t('welcome.coverage');
     const info = EXPRESSIONS[currentExpression];
     avatarStatusEl.textContent = info && info.text ? t(info.text) : '';
     refreshMemoryPanel();
@@ -682,7 +684,8 @@
     turnAgentText = '';
   }
 
-  const won = (n) => uiLang === 'ko' ? n.toLocaleString('ko-KR') + '원' : '₩' + n.toLocaleString('en-US');
+  // 해외 심사위원·팬용: 원화 옆에 대략적인 달러를 같이 보여 준다 (1달러≈1,400원 기준).
+  const won = (n) => uiLang === 'ko' ? n.toLocaleString('ko-KR') + '원' : '₩' + n.toLocaleString('en-US') + ' (≈$' + Math.round(n / 1400).toLocaleString('en-US') + ')';
   // price가 null인 아이템(priceText만 있거나 가격 미확인)이 있어서 won()에 바로 넘기지 않는다.
   const priceLabel = (i) => typeof i.price === 'number' ? won(i.price) : (i.priceText || t('price.unknown'));
   const CATEGORY_ICON = { "가방": "👜", "모자": "🧢", "신발": "👟", "목걸이": "📿", "니트": "🧶", "아우터": "🧥", "선글라스": "🕶️", "이어링": "💎", "셔츠": "👔", "반지": "💍", "벨트": "🧵" };
@@ -879,7 +882,7 @@
     text.className = 'wiki-text';
     const src = document.createElement('div');
     src.className = 'wiki-src';
-    src.textContent = ['손민수위키', item.group, item.member !== '단체' ? item.member : ''].filter(Boolean).join(' · ');
+    src.textContent = [t('src.wiki'), item.group, item.member !== '단체' ? item.member : ''].filter(Boolean).join(' · ');
     const brand = document.createElement('div');
     brand.className = 'wiki-brand';
     brand.textContent = item.brand;
@@ -1411,6 +1414,10 @@
     title.className = 'welcome-title';
     title.textContent = t('welcome.title');
     box.append(title);
+    const coverage = document.createElement('div');
+    coverage.className = 'welcome-coverage';
+    coverage.textContent = t('welcome.coverage');
+    box.append(coverage);
     for (const q of EXAMPLE_QUESTIONS) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -1564,6 +1571,7 @@
     fillList('visited-list', 'visitedPlaces', data.visitedPlaces, (p) => p.name);
   }
 
+  applyStaticI18n(); // 정적 문구를 기본 언어(영어)로 맞춘다. 이후 대화 언어가 바뀌면 setUiLang이 다시 쓴다.
   applyExpression('idle'); // 페이지 열리면 바로 SVG 마스코트로 (정적 HTML의 이모지 대체)
   renderWelcome();
   refreshMemoryPanel();

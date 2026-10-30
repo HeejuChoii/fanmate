@@ -43,7 +43,7 @@ Each answer shows **Fan-verified** cards (our data) and **Qloo taste match** car
 - Per-visitor isolation, rate limits and tool-call caps for a public demo
 
 ## Data
-`data/` contains a **public sample** (72 items, 75 places; BTS, IVE, aespa, RIIZE, NCT WISH; Seoul and Busan). The full dataset (600+ items, 500+ places covering 30+ groups, growing through our automated pipeline) is private.
+`data/` contains a **public sample** (74 items, 75 places; BTS, IVE, aespa, RIIZE, NCT WISH; Seoul and Busan). The full dataset (600+ items, 500+ places covering 30+ groups, growing through our automated pipeline) is private.
 
 ## Run locally
 Requires Node 22+.
