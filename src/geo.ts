@@ -91,7 +91,9 @@ const LATIN_ALIASES: Array<[string[], string]> = Object.entries(AREA_ALIASES).ma
  * korean: 한국어 후보(한국어로 썼거나, 일본어·중국어 표에서 찾은 것) / latin: 영문 비교 키.
  */
 export function areaQuery(raw: string | undefined | null): { all: boolean; korean: string[]; latin: string[] } {
-  const text = (raw ?? "").trim();
+  // "Seongsu, Seoul"처럼 쉼표로 덧붙인 상위 지역은 떼고 가장 구체적인 첫 부분으로 찾는다.
+  const full = (raw ?? "").trim();
+  const text = full.includes(",") ? (full.split(",")[0] ?? "").trim() || full : full;
   if (!text || WHOLE_COUNTRY.has(text) || WHOLE_COUNTRY.has(latinKey(text))) return { all: true, korean: [], latin: [] };
   const korean = new Set<string>();
   if (/[가-힣]/.test(text)) {
